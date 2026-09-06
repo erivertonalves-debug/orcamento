@@ -69,6 +69,7 @@ body{
 select, input[type=text], input[type=date], input[type=number]{
   font-family:inherit; font-size:13.5px; padding:7px 10px; border-radius:8px;
   border:1px solid var(--border); background:var(--surface-3); color:var(--text-primary);
+  max-width:100%;
 }
 .formrow select, .formrow input{ width:100%; box-sizing:border-box; max-width:100%; }
 button.btn{
@@ -87,6 +88,7 @@ button.btn.danger{background:transparent; color:var(--critical); border:1px soli
 .card h2{font-size:14.5px; margin:0 0 14px; color:var(--text-primary);}
 .card h2 small{font-weight:400; color:var(--text-muted); margin-left:6px;}
 .grid2{display:grid; grid-template-columns:1.3fr 1fr; gap:16px;}
+.grid2 > .card{min-width:0;}
 @media(max-width:900px){.grid2{grid-template-columns:1fr;}}
 table{width:100%; border-collapse:collapse; font-size:13px;}
 th{text-align:left; font-weight:600; color:var(--text-secondary); font-size:12px; padding:8px 10px; border-bottom:1px solid var(--grid);}
@@ -137,7 +139,8 @@ select.inlinesel{font-size:12px; padding:4px 6px; border-radius:6px; border:1px 
 ::-webkit-scrollbar{width:10px; height:10px;}
 ::-webkit-scrollbar-thumb{background:var(--baseline); border-radius:6px;}
 .footprint{font-size:11.5px; color:var(--text-muted); margin-top:24px; text-align:center;}
-.calgrid{display:grid; grid-template-columns:repeat(7,1fr); gap:6px;}
+.calgrid{display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:6px;}
+.calday{min-width:0;}
 .calweekday{text-align:center; font-size:11px; font-weight:600; color:var(--text-muted); padding:2px 0 8px;}
 .calday{border:1px solid var(--border); border-radius:8px; min-height:82px; padding:6px 7px; background:var(--surface-2);}
 .calday.pad{background:transparent; border-color:transparent;}
@@ -161,6 +164,56 @@ select.inlinesel{font-size:12px; padding:4px 6px; border-radius:6px; border:1px 
 .ocrbox{border:1px dashed var(--border); border-radius:8px; padding:14px; text-align:center; background:var(--surface-2); margin-bottom:14px;}
 .ocrbox.busy{opacity:0.7;}
 .ocrstatus{font-size:12px; color:var(--text-secondary); margin-top:8px; min-height:16px;}
+
+/* ===== Responsivo (celular) ===== */
+.tblwrap{width:100%;}
+.mobiletopbar{display:none;}
+.sidebar-backdrop{display:none;}
+.menutoggle{
+  display:none; align-items:center; justify-content:center; width:36px; height:36px; flex:0 0 36px;
+  border-radius:8px; border:1px solid var(--border); background:var(--surface-3); color:var(--text-primary);
+  font-size:18px; cursor:pointer; padding:0;
+}
+@media(max-width:860px){
+  .app{position:relative; flex-direction:column;}
+  .mobiletopbar{
+    display:flex; align-items:center; gap:10px; padding:10px 14px; background:var(--surface-1);
+    border-bottom:1px solid var(--border); position:sticky; top:0; z-index:60;
+  }
+  .mobiletopbar .brand{padding:0; font-size:14px; flex:1;}
+  .mobiletopbar .brand small{font-size:10.5px;}
+  .menutoggle{display:inline-flex;}
+  .sidebar{
+    position:fixed; top:0; left:0; bottom:0; z-index:500; width:78vw; max-width:280px;
+    transform:translateX(-100%); transition:transform .22s ease; box-shadow:2px 0 24px rgba(0,0,0,0.22);
+    overflow-y:auto;
+  }
+  .sidebar.open{transform:translateX(0);}
+  .sidebar-backdrop{
+    display:block; position:fixed; inset:0; background:rgba(0,0,0,0.4); z-index:400;
+    opacity:0; pointer-events:none; transition:opacity .2s ease;
+  }
+  .sidebar-backdrop.show{opacity:1; pointer-events:auto;}
+  .main{padding:14px 14px 50px; max-width:100%;}
+  .card{padding:14px 14px;}
+  .topbar h1{font-size:17px;}
+  .tiles{grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:10px;}
+  .tile{padding:12px 14px;}
+  .tile .value{font-size:20px;}
+  .barrow .lbl{width:96px; flex:0 0 96px; font-size:11.5px;}
+  .barrow .num{width:72px; flex:0 0 72px; font-size:11.5px;}
+  .catmgr-row{grid-template-columns:1fr 1fr 66px 50px; font-size:12.5px;}
+  .filters{gap:6px;}
+  .filters select, .filters input{flex:1 1 140px; min-width:0;}
+  .tblwrap{overflow-x:auto; -webkit-overflow-scrolling:touch; margin:0 -14px; padding:0 14px;}
+  .tblwrap table{width:max-content; min-width:100%;}
+  .tblwrap th, .tblwrap td{white-space:nowrap;}
+  .tblwrap td textarea.obsbox{white-space:normal; min-width:160px;}
+}
+@media(max-width:420px){
+  .lockbox{padding:26px 20px;}
+  .lockbox input{font-size:18px; letter-spacing:4px;}
+}
 </style>
 </head>
 <body>
@@ -176,7 +229,12 @@ select.inlinesel{font-size:12px; padding:4px 6px; border-radius:6px; border:1px 
   </div>
 </div>
 <div class="app" id="appRoot" style="display:none;">
-  <div class="sidebar">
+  <div class="mobiletopbar">
+    <button class="menutoggle" id="btnMenuToggle" aria-label="Abrir menu">☰</button>
+    <div class="brand">💰 Orçamento Pessoal<small id="acctSummaryMobile"></small></div>
+  </div>
+  <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+  <div class="sidebar" id="sidebar">
     <div class="brand">💰 Orçamento Pessoal<small id="acctSummary"></small></div>
     <button class="navbtn active" data-tab="dashboard"><span class="ic">📊</span>Dashboard</button>
     <button class="navbtn" data-tab="lancamentos"><span class="ic">📝</span>Lançamentos</button>
@@ -3327,8 +3385,26 @@ document.querySelectorAll('.navbtn').forEach(btn=>{
     btn.classList.add('active');
     currentTab = btn.dataset.tab;
     render();
+    closeMobileMenu();
   });
 });
+
+// ===================== Menu mobile (celular) =====================
+function openMobileMenu(){
+  document.getElementById('sidebar').classList.add('open');
+  document.getElementById('sidebarBackdrop').classList.add('show');
+}
+function closeMobileMenu(){
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('sidebarBackdrop').classList.remove('show');
+}
+const btnMenuToggle = document.getElementById('btnMenuToggle');
+if(btnMenuToggle) btnMenuToggle.addEventListener('click', ()=>{
+  const sb = document.getElementById('sidebar');
+  if(sb.classList.contains('open')) closeMobileMenu(); else openMobileMenu();
+});
+const sidebarBackdrop = document.getElementById('sidebarBackdrop');
+if(sidebarBackdrop) sidebarBackdrop.addEventListener('click', closeMobileMenu);
 document.getElementById('btnTheme').addEventListener('click', ()=>{
   const html = document.documentElement;
   html.setAttribute('data-theme', html.getAttribute('data-theme')==='dark' ? 'light':'dark');
@@ -3361,7 +3437,10 @@ document.getElementById('fileImport').addEventListener('change', (e)=>{
 
 function updateSidebarSummary(){
   const total = state.accounts.reduce((s,a)=>s+a.saldoAtual,0);
-  document.getElementById('acctSummary').textContent = `Saldo em contas: ${fmt(total)}`;
+  const txt = `Saldo em contas: ${fmt(total)}`;
+  document.getElementById('acctSummary').textContent = txt;
+  const mob = document.getElementById('acctSummaryMobile');
+  if(mob) mob.textContent = txt;
 }
 
 // ===================== Persistência local + Google Drive =====================
@@ -3491,9 +3570,9 @@ function viewDashboard(){
       </div>
       <div class="card">
         <h2>Maiores gastos individuais <small>${monthLabel(month)}</small></h2>
-        <table><tbody>
+        <div class="tblwrap"><table><tbody>
         ${topGastos.map(l=>`<tr><td>${fmtDate(l.data)}</td><td>${l.descricao}</td><td style="text-align:right">${fmt(Math.abs(l.valor))}</td></tr>`).join('') || '<tr><td class="empty">Sem dados</td></tr>'}
-        </tbody></table>
+        </tbody></table></div>
       </div>
     </div>
     <div class="card">
@@ -3846,7 +3925,7 @@ function renderTabelaLancamentos(){
   if(txt) rows = rows.filter(l=>l.descricao.toLowerCase().includes(txt));
   const el = document.getElementById('tabelaLancamentos');
   el.innerHTML = `
-    <table>
+    <div class="tblwrap"><table>
       <thead><tr><th>Data</th><th>Origem</th><th>Categoria</th><th>Descrição</th><th style="text-align:right">Valor</th><th></th></tr></thead>
       <tbody>
       ${rows.map(l=>{
@@ -3861,7 +3940,7 @@ function renderTabelaLancamentos(){
         </tr>`;
       }).join('') || '<tr><td colspan="6" class="empty">Nenhum lançamento encontrado</td></tr>'}
       </tbody>
-    </table>
+    </table></div>
     <div class="sub" style="margin-top:10px">${rows.length} lançamento(s) · a categoria de cada linha pode ser alterada direto na tabela</div>
   `;
   el.querySelectorAll('[data-editcat]').forEach(sel=>{
@@ -3934,7 +4013,7 @@ function viewOrcado(){
       <div class="tile"><div class="label">Despesas realizadas</div><div class="value neg">${fmt(totalRealDespesa)}</div></div>
     </div>
     <div class="card">
-      <table>
+      <div class="tblwrap"><table>
         <thead><tr>
           <th>Grupo</th><th>Categoria</th><th>Dia venc.</th>
           <th style="text-align:right">Orçado</th><th style="text-align:right">Realizado</th><th style="text-align:right">Diferença</th>
@@ -3956,7 +4035,7 @@ function viewOrcado(){
           </tr>`;
         }).join('')}
         </tbody>
-      </table>
+      </table></div>
     </div>
   `;
 }
@@ -4013,14 +4092,14 @@ function viewAberto(){
 
   function tableFor(list){
     if(list.length===0) return '<div class="empty">Nada aqui 🎉</div>';
-    return `<table><thead><tr><th>Grupo</th><th>Categoria</th><th>Dia venc.</th><th style="text-align:right">Valor orçado</th><th>Observação</th></tr></thead><tbody>
+    return `<div class="tblwrap"><table><thead><tr><th>Grupo</th><th>Categoria</th><th>Dia venc.</th><th style="text-align:right">Valor orçado</th><th>Observação</th></tr></thead><tbody>
       ${list.map(r=>`<tr>
         <td>${r.cat.grupo}</td><td>${r.cat.nome}</td>
         <td><span class="daybadge">${diaLabel(r.line)}</span></td>
         <td style="text-align:right">${fmt(r.orcado||0)}</td>
         <td class="sub">${r.line.observacao||''}</td>
       </tr>`).join('')}
-    </tbody></table>`;
+    </tbody></table></div>`;
   }
 
   return `
@@ -4142,7 +4221,7 @@ function viewFluxo(){
         </div>
       </div>
       ${fluxoView==='calendario' ? calendarioFluxo(rows, fluxoMonth) : `
-      <table>
+      <div class="tblwrap"><table>
         <thead><tr><th>Data</th><th style="text-align:right">Saldo inicial</th><th style="text-align:right">Entradas</th><th style="text-align:right">Saídas</th><th style="text-align:right">Saldo final</th><th>Detalhe</th></tr></thead>
         <tbody>
         ${rows.map(r=>`<tr>
@@ -4154,7 +4233,7 @@ function viewFluxo(){
           <td class="sub">${r.items.map(x=>x.descricao).join(', ')}</td>
         </tr>`).join('')}
         </tbody>
-      </table>
+      </table></div>
       `}
     </div>
   `;
@@ -4261,10 +4340,10 @@ function faturaBodyHTML(cardId){
     return `<details class="invoice" ${m===invoices[0]?'open':''}>
       <summary><span>${monthLabel(m)} ${venc?`· vencimento ${fmtDate(venc)}`:''}</span><span class="tot">${fmt(total-creditos)}</span></summary>
       <div class="body">
-        <table><thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th><th style="text-align:right">Valor</th></tr></thead>
+        <div class="tblwrap"><table><thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th><th style="text-align:right">Valor</th></tr></thead>
         <tbody>
         ${list.map(l=>`<tr><td>${fmtDate(l.data)}</td><td>${l.descricao}</td><td>${catById(l.categoriaId).nome}</td><td style="text-align:right" class="${l.valor>=0?'val-pos':'val-neg'}">${fmt(l.valor)}</td></tr>`).join('')}
-        </tbody></table>
+        </tbody></table></div>
       </div>
     </details>`;
   }).join('');
@@ -4301,7 +4380,7 @@ function extratoBodyHTML(accId){
     </div>
     <div class="card">
       <h2>Extrato <small>${acc.name} · ${acc.banco}</small></h2>
-      <table>
+      <div class="tblwrap"><table>
         <thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th><th style="text-align:right">Valor</th><th style="text-align:right">Saldo</th></tr></thead>
         <tbody>
         ${rows.map(l=>`<tr>
@@ -4312,7 +4391,7 @@ function extratoBodyHTML(accId){
           <td style="text-align:right">${fmt(l.saldo)}</td>
         </tr>`).join('')}
         </tbody>
-      </table>
+      </table></div>
     </div>
   `;
 }
