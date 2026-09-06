@@ -1,0 +1,4341 @@
+<!doctype html>
+<html lang="pt-BR" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Orçamento Pessoal — Painel</title>
+<link rel="manifest" href="./manifest.json">
+<link rel="icon" href="./icon-192.png">
+<link rel="apple-touch-icon" href="./icon-192.png">
+<meta name="theme-color" content="#2a78d6">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Orçamento">
+<style>
+:root{
+  --surface-1:#fcfcfb; --surface-2:#f9f9f7; --surface-3:#ffffff;
+  --text-primary:#0b0b0b; --text-secondary:#52514e; --text-muted:#898781;
+  --grid:#e1e0d9; --baseline:#c3c2b7; --border:rgba(11,11,11,0.10);
+  --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#eda100;
+  --s5:#e87ba4; --s6:#008300; --s7:#4a3aa7; --s8:#e34948;
+  --good:#0ca30c; --warning:#fab219; --serious:#ec835a; --critical:#d03b3b;
+  --success-text:#006300;
+  --radius:10px;
+  color-scheme:light;
+}
+[data-theme="dark"]{
+  --surface-1:#1a1a19; --surface-2:#0d0d0d; --surface-3:#232322;
+  --text-primary:#ffffff; --text-secondary:#c3c2b7; --text-muted:#898781;
+  --grid:#2c2c2a; --baseline:#383835; --border:rgba(255,255,255,0.10);
+  --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500;
+  --s5:#d55181; --s6:#008300; --s7:#9085e9; --s8:#e66767;
+  --good:#0ca30c; --warning:#fab219; --serious:#ec835a; --critical:#d03b3b;
+  --success-text:#0ca30c;
+  color-scheme:dark;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  background:var(--surface-2); color:var(--text-primary);
+  min-height:100vh;
+}
+.app{display:flex; min-height:100vh;}
+.sidebar{
+  width:220px; flex:0 0 220px; background:var(--surface-1); border-right:1px solid var(--border);
+  padding:20px 12px; display:flex; flex-direction:column; gap:4px;
+}
+.brand{font-weight:700; font-size:15px; padding:6px 10px 18px; color:var(--text-primary);}
+.brand small{display:block; font-weight:400; color:var(--text-muted); font-size:11px; margin-top:2px;}
+.navbtn{
+  display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:8px; border:none;
+  background:transparent; color:var(--text-secondary); font-size:14px; text-align:left; cursor:pointer;
+  width:100%;
+}
+.navbtn:hover{background:var(--surface-3);}
+.navbtn.active{background:var(--s1); color:#fff;}
+.navbtn .ic{font-size:16px; width:18px; text-align:center;}
+.sidebar-foot{margin-top:auto; padding-top:12px; border-top:1px solid var(--border); display:flex; flex-direction:column; gap:6px;}
+.smallbtn{
+  font-size:12.5px; padding:8px 10px; border-radius:8px; border:1px solid var(--border);
+  background:var(--surface-3); color:var(--text-secondary); cursor:pointer; text-align:left;
+}
+.smallbtn:hover{color:var(--text-primary); border-color:var(--text-muted);}
+.main{flex:1; padding:22px 28px 60px; max-width:1180px;}
+.topbar{display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; gap:12px; flex-wrap:wrap;}
+.topbar h1{font-size:20px; margin:0;}
+.topbar .sub{color:var(--text-secondary); font-size:13px; margin-top:2px;}
+select, input[type=text], input[type=date], input[type=number]{
+  font-family:inherit; font-size:13.5px; padding:7px 10px; border-radius:8px;
+  border:1px solid var(--border); background:var(--surface-3); color:var(--text-primary);
+}
+.formrow select, .formrow input{ width:100%; box-sizing:border-box; max-width:100%; }
+button.btn{
+  font-family:inherit; font-size:13.5px; padding:8px 14px; border-radius:8px; border:none;
+  background:var(--s1); color:#fff; cursor:pointer; font-weight:600;
+}
+button.btn.secondary{background:var(--surface-3); color:var(--text-primary); border:1px solid var(--border); font-weight:500;}
+button.btn.danger{background:transparent; color:var(--critical); border:1px solid var(--critical);}
+.tiles{display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:14px; margin-bottom:20px;}
+.tile{background:var(--surface-1); border:1px solid var(--border); border-radius:var(--radius); padding:16px 18px;}
+.tile .label{font-size:12.5px; color:var(--text-secondary);}
+.tile .value{font-size:26px; font-weight:600; margin-top:6px; font-variant-numeric:proportional-nums;}
+.tile .value.pos{color:var(--success-text);}
+.tile .value.neg{color:var(--critical);}
+.card{background:var(--surface-1); border:1px solid var(--border); border-radius:var(--radius); padding:18px 20px; margin-bottom:18px;}
+.card h2{font-size:14.5px; margin:0 0 14px; color:var(--text-primary);}
+.card h2 small{font-weight:400; color:var(--text-muted); margin-left:6px;}
+.grid2{display:grid; grid-template-columns:1.3fr 1fr; gap:16px;}
+@media(max-width:900px){.grid2{grid-template-columns:1fr;}}
+table{width:100%; border-collapse:collapse; font-size:13px;}
+th{text-align:left; font-weight:600; color:var(--text-secondary); font-size:12px; padding:8px 10px; border-bottom:1px solid var(--grid);}
+td{padding:8px 10px; border-bottom:1px solid var(--grid); color:var(--text-primary); font-variant-numeric:tabular-nums;}
+tr:hover td{background:var(--surface-2);}
+.tag{display:inline-block; padding:2px 8px; border-radius:999px; font-size:11px; background:var(--surface-2); color:var(--text-secondary); border:1px solid var(--border);}
+.val-pos{color:var(--success-text); font-weight:600;}
+.val-neg{color:var(--text-primary);}
+.filters{display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px; align-items:center;}
+.formrow{display:grid; grid-template-columns:120px 110px minmax(0,140px) minmax(0,1.3fr) minmax(0,110px) 130px 90px; gap:8px; align-items:end; margin-bottom:14px;}
+.formrow > div{min-width:0;}
+.formrow label{display:block; font-size:11px; color:var(--text-muted); margin-bottom:3px;}
+@media(max-width:1050px){.formrow{grid-template-columns:1fr 1fr; }}
+.legend{display:flex; gap:14px; flex-wrap:wrap; margin-top:10px; font-size:12px; color:var(--text-secondary);}
+.legend .sw{display:inline-block; width:10px; height:10px; border-radius:3px; margin-right:5px; vertical-align:-1px;}
+.barrow{display:flex; align-items:center; gap:10px; margin-bottom:10px;}
+.barrow .lbl{width:170px; font-size:12.5px; color:var(--text-secondary); flex:0 0 170px; text-align:right; padding-right:2px;}
+.barrow .track{flex:1; position:relative; height:20px;}
+.barrow .fill{position:absolute; top:2px; height:16px; border-radius:4px; background:var(--s1);}
+.barrow .num{width:82px; flex:0 0 82px; font-size:12.5px; text-align:left; font-variant-numeric:tabular-nums; color:var(--text-primary);}
+.tabs{display:flex; gap:6px; margin-bottom:16px; border-bottom:1px solid var(--border);}
+.tabbtn{padding:9px 14px; font-size:13px; border:none; background:transparent; color:var(--text-secondary); cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-1px;}
+.tabbtn.active{color:var(--s1); border-bottom-color:var(--s1); font-weight:600;}
+.invoice{border:1px solid var(--border); border-radius:8px; margin-bottom:12px; overflow:hidden;}
+.invoice summary{cursor:pointer; padding:12px 16px; display:flex; justify-content:space-between; align-items:center; background:var(--surface-2); font-size:13.5px; list-style:none;}
+.invoice summary::-webkit-details-marker{display:none;}
+.invoice summary .tot{font-weight:700; font-variant-numeric:tabular-nums;}
+.invoice .body{padding:4px 16px 14px;}
+.pill{padding:2px 9px; border-radius:999px; font-size:11px; font-weight:600;}
+.pill.good{background:rgba(12,163,12,.12); color:var(--good);}
+.pill.warn{background:rgba(250,178,25,.18); color:#a06600;}
+.pill.late{background:rgba(208,59,59,.14); color:var(--critical);}
+.pill.over{background:rgba(235,104,52,.16); color:var(--s2);}
+.pill.plan{background:var(--surface-2); color:var(--text-muted); border:1px solid var(--border);}
+textarea.obsbox{width:100%; min-height:32px; font-family:inherit; font-size:12.5px; padding:6px 8px; border-radius:6px; border:1px solid var(--border); background:var(--surface-3); color:var(--text-primary); resize:vertical;}
+select.inlinesel{font-size:12px; padding:4px 6px; border-radius:6px; border:1px solid var(--border); background:var(--surface-3); color:var(--text-primary); max-width:220px;}
+.monthtabs{display:flex; gap:4px; flex-wrap:wrap; margin-bottom:14px;}
+.monthtabs button{padding:6px 12px; font-size:12.5px; border-radius:999px; border:1px solid var(--border); background:var(--surface-3); color:var(--text-secondary); cursor:pointer;}
+.monthtabs button.active{background:var(--s1); color:#fff; border-color:var(--s1);}
+.catmgr{border:1px dashed var(--border); border-radius:8px; padding:12px 14px; margin-top:8px;}
+.catmgr-row{display:grid; grid-template-columns:1fr 1fr 90px 70px; gap:8px; margin-bottom:6px; align-items:center;}
+.daybadge{font-size:10.5px; padding:1px 6px; border-radius:5px; background:var(--surface-2); color:var(--text-muted); border:1px solid var(--border);}
+.empty{color:var(--text-muted); font-size:13px; padding:20px; text-align:center;}
+.tooltip{position:fixed; background:var(--text-primary); color:var(--surface-1); font-size:12px; padding:6px 10px; border-radius:6px; pointer-events:none; z-index:999; opacity:0; transition:opacity .1s; white-space:nowrap;}
+.tooltip.show{opacity:1;}
+.readme-box{background:var(--surface-2); border:1px solid var(--border); border-radius:8px; padding:12px 14px; font-size:12.5px; color:var(--text-secondary); margin-bottom:18px; line-height:1.5;}
+.readme-box b{color:var(--text-primary);}
+::-webkit-scrollbar{width:10px; height:10px;}
+::-webkit-scrollbar-thumb{background:var(--baseline); border-radius:6px;}
+.footprint{font-size:11.5px; color:var(--text-muted); margin-top:24px; text-align:center;}
+.calgrid{display:grid; grid-template-columns:repeat(7,1fr); gap:6px;}
+.calweekday{text-align:center; font-size:11px; font-weight:600; color:var(--text-muted); padding:2px 0 8px;}
+.calday{border:1px solid var(--border); border-radius:8px; min-height:82px; padding:6px 7px; background:var(--surface-2);}
+.calday.pad{background:transparent; border-color:transparent;}
+.calday.today{border-color:var(--s1); border-width:2px; padding:5px 6px;}
+.calday.future{background:var(--surface-1);}
+.calnum{font-size:11.5px; color:var(--text-secondary); font-weight:600; margin-bottom:5px;}
+.calamt{font-size:11px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-bottom:2px;}
+.calamt.pos{color:var(--success-text);}
+.calamt.neg{color:var(--critical);}
+@media(max-width:700px){.calgrid{gap:3px;} .calday{min-height:58px; padding:4px;} .calamt{font-size:9.5px;} .calweekday{font-size:9.5px;}}
+.lockscreen{position:fixed; inset:0; background:var(--surface-2); display:flex; align-items:center; justify-content:center; z-index:1000; padding:20px;}
+.lockbox{background:var(--surface-1); border:1px solid var(--border); border-radius:var(--radius); padding:32px 28px; width:100%; max-width:340px; text-align:center; box-shadow:0 8px 30px rgba(0,0,0,0.12);}
+.lockbox h1{font-size:18px; margin:0 0 6px; color:var(--text-primary);}
+.lockbox p{font-size:12.5px; color:var(--text-muted); margin:0 0 20px;}
+.lockbox input{width:100%; font-size:20px; text-align:center; letter-spacing:6px; padding:12px; border-radius:8px; border:1px solid var(--border); background:var(--surface-2); color:var(--text-primary); margin-bottom:12px; box-sizing:border-box;}
+.lockerr{color:var(--critical); font-size:12.5px; margin-top:10px; min-height:16px;}
+.syncbox{margin-bottom:6px;}
+.syncstatus{font-size:10.5px; color:var(--text-muted); padding:4px 2px 8px; line-height:1.4;}
+.syncstatus.err{color:var(--critical);}
+.syncstatus.ok{color:var(--good);}
+.ocrbox{border:1px dashed var(--border); border-radius:8px; padding:14px; text-align:center; background:var(--surface-2); margin-bottom:14px;}
+.ocrbox.busy{opacity:0.7;}
+.ocrstatus{font-size:12px; color:var(--text-secondary); margin-top:8px; min-height:16px;}
+</style>
+</head>
+<body>
+<div class="lockscreen" id="lockScreen">
+  <div class="lockbox">
+    <h1>💰 Orçamento Pessoal</h1>
+    <p>Digite a senha para continuar</p>
+    <form id="formLock" autocomplete="off">
+      <input type="password" id="lockInput" inputmode="numeric" autocomplete="current-password" placeholder="Senha" autofocus>
+      <button class="btn" type="submit" style="width:100%;">Entrar</button>
+      <div class="lockerr" id="lockErr"></div>
+    </form>
+  </div>
+</div>
+<div class="app" id="appRoot" style="display:none;">
+  <div class="sidebar">
+    <div class="brand">💰 Orçamento Pessoal<small id="acctSummary"></small></div>
+    <button class="navbtn active" data-tab="dashboard"><span class="ic">📊</span>Dashboard</button>
+    <button class="navbtn" data-tab="lancamentos"><span class="ic">📝</span>Lançamentos</button>
+    <button class="navbtn" data-tab="orcado"><span class="ic">🎯</span>Orçado x Realizado</button>
+    <button class="navbtn" data-tab="aberto"><span class="ic">⏰</span>Em Aberto</button>
+    <button class="navbtn" data-tab="fluxo"><span class="ic">📈</span>Fluxo de Caixa</button>
+    <button class="navbtn" data-tab="faturas"><span class="ic">💳</span>Faturas por cartão</button>
+    <button class="navbtn" data-tab="extratos"><span class="ic">🏦</span>Extratos por conta</button>
+    <div class="sidebar-foot">
+      <div class="syncbox" id="syncBox">
+        <button class="smallbtn" id="btnConnectDrive">🔗 Conectar Google Drive</button>
+        <div class="syncstatus" id="syncStatus"></div>
+      </div>
+      <button class="smallbtn" id="btnExport">⬇️ Exportar dados (JSON)</button>
+      <button class="smallbtn" id="btnImport">⬆️ Importar dados (JSON)</button>
+      <button class="smallbtn" id="btnTheme">🌓 Alternar tema</button>
+      <button class="smallbtn" id="btnLock">🔒 Bloquear</button>
+      <input type="file" id="fileImport" accept="application/json" style="display:none">
+    </div>
+  </div>
+  <div class="main" id="main"></div>
+</div>
+<div class="tooltip" id="tooltip"></div>
+
+<script id="seed-data" type="application/json">{
+  "accounts": [
+    {
+      "id": "itau_pf",
+      "name": "Itaú PF (cc 082829-4)",
+      "banco": "Itaú",
+      "saldoAtual": 519.85,
+      "dataExtrato": "2026-08-19"
+    },
+    {
+      "id": "inter_pf",
+      "name": "Inter PF (cc 4772857-4)",
+      "banco": "Banco Inter",
+      "saldoAtual": 2.34,
+      "dataExtrato": "2026-08-19"
+    },
+    {
+      "id": "esa_pj",
+      "name": "ESA - Inter PJ (cc 33913298-1)",
+      "banco": "Banco Inter",
+      "saldoAtual": 30582.46,
+      "dataExtrato": "2026-08-19"
+    },
+    {
+      "id": "bb",
+      "name": "Banco do Brasil (cc 103665-3)",
+      "banco": "Banco do Brasil",
+      "saldoAtual": 0,
+      "dataExtrato": "2026-08-19"
+    }
+  ],
+  "cards": [
+    {
+      "id": "itau_platinum",
+      "name": "Itaú Platinum (final 7586)",
+      "limite": 290
+    },
+    {
+      "id": "itau_0705",
+      "name": "Itaú (final 0705)",
+      "limite": 200
+    },
+    {
+      "id": "inter_card",
+      "name": "Inter (cartões 1028 e 4369)",
+      "limite": 3177.22
+    },
+    {
+      "id": "nubank",
+      "name": "Nubank",
+      "limite": null
+    }
+  ],
+  "categories": [
+    {
+      "id": "receita_dnx",
+      "nome": "Receita DNX",
+      "tipo": "receita",
+      "grupo": "Receita"
+    },
+    {
+      "id": "receita_essential",
+      "nome": "Receita Essential",
+      "tipo": "receita",
+      "grupo": "Receita"
+    },
+    {
+      "id": "receita_hp",
+      "nome": "NF HP",
+      "tipo": "receita",
+      "grupo": "Receita"
+    },
+    {
+      "id": "esa_contador",
+      "nome": "Contador",
+      "tipo": "despesa",
+      "grupo": "ESA"
+    },
+    {
+      "id": "esa_coworking",
+      "nome": "Coworking",
+      "tipo": "despesa",
+      "grupo": "ESA"
+    },
+    {
+      "id": "esa_imposto_simples",
+      "nome": "Imposto Simples (atraso mar/26)",
+      "tipo": "despesa",
+      "grupo": "ESA"
+    },
+    {
+      "id": "esa_imposto_simples_hp",
+      "nome": "Imposto Simples HP",
+      "tipo": "despesa",
+      "grupo": "ESA"
+    },
+    {
+      "id": "esa_imposto_atrasado",
+      "nome": "Imposto Simples Atrasado (parcelado)",
+      "tipo": "despesa",
+      "grupo": "ESA"
+    },
+    {
+      "id": "esa_inss",
+      "nome": "INSS",
+      "tipo": "despesa",
+      "grupo": "ESA"
+    },
+    {
+      "id": "esa_plano_saude",
+      "nome": "Plano de Saúde (Unimed)",
+      "tipo": "despesa",
+      "grupo": "ESA"
+    },
+    {
+      "id": "moradia_aluguel",
+      "nome": "Aluguel",
+      "tipo": "despesa",
+      "grupo": "Moradia"
+    },
+    {
+      "id": "moradia_condominio",
+      "nome": "Condomínio",
+      "tipo": "despesa",
+      "grupo": "Moradia"
+    },
+    {
+      "id": "moradia_credpago",
+      "nome": "Credpago",
+      "tipo": "despesa",
+      "grupo": "Moradia"
+    },
+    {
+      "id": "moradia_iptu",
+      "nome": "IPTU",
+      "tipo": "despesa",
+      "grupo": "Moradia"
+    },
+    {
+      "id": "moradia_juros",
+      "nome": "Juros",
+      "tipo": "despesa",
+      "grupo": "Outros"
+    },
+    {
+      "id": "moradia_seguro_incendio",
+      "nome": "Seguro Incêndio",
+      "tipo": "despesa",
+      "grupo": "Moradia"
+    },
+    {
+      "id": "moradia_taxa_boleto",
+      "nome": "Taxa Boleto",
+      "tipo": "despesa",
+      "grupo": "Moradia"
+    },
+    {
+      "id": "moradia_energia",
+      "nome": "Energia (Enel)",
+      "tipo": "despesa",
+      "grupo": "Moradia"
+    },
+    {
+      "id": "moradia_internet",
+      "nome": "Internet (Alares)",
+      "tipo": "despesa",
+      "grupo": "Moradia"
+    },
+    {
+      "id": "moradia_netflix",
+      "nome": "Netflix",
+      "tipo": "despesa",
+      "grupo": "Moradia"
+    },
+    {
+      "id": "moradia_banho_mile",
+      "nome": "Banho Mile",
+      "tipo": "despesa",
+      "grupo": "Moradia"
+    },
+    {
+      "id": "moradia_pao",
+      "nome": "Compra de pão",
+      "tipo": "despesa",
+      "grupo": "Moradia"
+    },
+    {
+      "id": "moradia_supermercado",
+      "nome": "Supermercado",
+      "tipo": "despesa",
+      "grupo": "Moradia"
+    },
+    {
+      "id": "emprestimo_mae",
+      "nome": "Empréstimo Mãe",
+      "tipo": "despesa",
+      "grupo": "Empréstimo"
+    },
+    {
+      "id": "isaac_judo",
+      "nome": "Judô",
+      "tipo": "despesa",
+      "grupo": "Isaac"
+    },
+    {
+      "id": "isaac_livro",
+      "nome": "Livro Isaac",
+      "tipo": "despesa",
+      "grupo": "Isaac"
+    },
+    {
+      "id": "isaac_recarga_tim",
+      "nome": "Recarga TIM",
+      "tipo": "despesa",
+      "grupo": "Isaac"
+    },
+    {
+      "id": "isaac_corte_cabelo",
+      "nome": "Corte de Cabelo (Isaac)",
+      "tipo": "despesa",
+      "grupo": "Isaac"
+    },
+    {
+      "id": "mae_tim",
+      "nome": "TIM (Mãe)",
+      "tipo": "despesa",
+      "grupo": "Mãe"
+    },
+    {
+      "id": "parcelamento_itau",
+      "nome": "Parcelamento Itaú",
+      "tipo": "despesa",
+      "grupo": "Parcelamento"
+    },
+    {
+      "id": "parcelamento_movida",
+      "nome": "Parcelamento Movida",
+      "tipo": "despesa",
+      "grupo": "Parcelamento"
+    },
+    {
+      "id": "parcelamento_bradesco",
+      "nome": "Parcelamento Bradesco",
+      "tipo": "despesa",
+      "grupo": "Parcelamento"
+    },
+    {
+      "id": "pessoais_academia",
+      "nome": "Total Pass - Academia",
+      "tipo": "despesa",
+      "grupo": "Pessoais"
+    },
+    {
+      "id": "pessoais_corte_cabelo",
+      "nome": "Corte de Cabelo",
+      "tipo": "despesa",
+      "grupo": "Pessoais"
+    },
+    {
+      "id": "pessoais_tim",
+      "nome": "TIM (Pessoal)",
+      "tipo": "despesa",
+      "grupo": "Pessoais"
+    },
+    {
+      "id": "pessoais_direcao",
+      "nome": "Cursos e Treinamentos",
+      "tipo": "despesa",
+      "grupo": "Pessoais"
+    },
+    {
+      "id": "pessoais_google_drive",
+      "nome": "Google Drive",
+      "tipo": "despesa",
+      "grupo": "Pessoais"
+    },
+    {
+      "id": "pessoais_restaurantes",
+      "nome": "Restaurantes/Bares",
+      "tipo": "despesa",
+      "grupo": "Pessoais"
+    },
+    {
+      "id": "pessoais_ia",
+      "nome": "Sistemas e Apps",
+      "tipo": "despesa",
+      "grupo": "Pessoais"
+    },
+    {
+      "id": "pessoais_viagens",
+      "nome": "Viagens/Lazer",
+      "tipo": "despesa",
+      "grupo": "Pessoais"
+    },
+    {
+      "id": "pessoais_viagem_passagens",
+      "nome": "Viagem Salvador - Passagens",
+      "tipo": "despesa",
+      "grupo": "Pessoais"
+    },
+    {
+      "id": "pessoais_viagem_hotel",
+      "nome": "Viagem Salvador - Hotel",
+      "tipo": "despesa",
+      "grupo": "Pessoais"
+    },
+    {
+      "id": "transporte_uber",
+      "nome": "Uber/99",
+      "tipo": "despesa",
+      "grupo": "Transporte"
+    },
+    {
+      "id": "outros_compras",
+      "nome": "Compras diversas",
+      "tipo": "despesa",
+      "grupo": "Pessoais"
+    },
+    {
+      "id": "outros_saude",
+      "nome": "Saúde (farmácias etc)",
+      "tipo": "despesa",
+      "grupo": "Pessoais"
+    },
+    {
+      "id": "outros_diversos",
+      "nome": "Entradas/saídas diversas",
+      "tipo": "despesa",
+      "grupo": "Outros"
+    },
+    {
+      "id": "custom_isaac_outros_mszx6smp",
+      "nome": "Isaac Outros",
+      "grupo": "Isaac",
+      "tipo": "despesa"
+    },
+    {
+      "id": "custom_roupas_e_cal_ados_mszxehbq",
+      "nome": "Roupas e Calçados",
+      "grupo": "Pessoais",
+      "tipo": "despesa"
+    },
+    {
+      "id": "custom_pagamento_fatura_cart_o_mszy27c7",
+      "nome": "Pagamento Fatura Cartão",
+      "grupo": "Pagamento",
+      "tipo": "despesa"
+    },
+    {
+      "id": "custom_transfer_ncias_mszy4jo9",
+      "nome": "Transferências",
+      "grupo": "Pagamento",
+      "tipo": "despesa"
+    }
+  ],
+  "lancamentos": [
+    {
+      "id": 1,
+      "data": "2026-08-03",
+      "origemTipo": "conta",
+      "origemId": "itau_pf",
+      "categoriaId": "moradia_supermercado",
+      "descricao": "Companhia Brasileira (mercado)",
+      "valor": -4.5,
+      "fatura": null,
+      "vencimento": null
+    },
+    {
+      "id": 2,
+      "data": "2026-08-03",
+      "origemTipo": "conta",
+      "origemId": "itau_pf",
+      "categoriaId": "pessoais_restaurantes",
+      "descricao": "Sir Fisher (restaurante)",
+      "valor": -83.6,
+      "fatura": null,
+      "vencimento": null
+    },
+    {
+      "id": 3,
+      "data": "2026-08-03",
+      "origemTipo": "conta",
+      "origemId": "itau_pf",
+      "categoriaId": "pessoais_restaurantes",
+      "descricao": "Vila Açaí",
+      "valor": -47.05,
+      "fatura": null,
+      "vencimento": null
+    },
+    {
+      "id": 4,
+      "data": "2026-08-04",
+      "origemTipo": "conta",
+      "origemId": "itau_pf",
+      "categoriaId": "custom_isaac_outros_mszx6smp",
+      "descricao": "Amazon",
+      "valor": -52.49,
+      "fatura": null,
+      "vencimento": null
+    },
+    {
+      "id": 5,
+      "data": "2026-08-05",
+      "origemTipo": "conta",
+      "origemId": "itau_pf",
+      "categoriaId": "transporte_uber",
+      "descricao": "Uber",
+      "valor": -10.06,
+      "fatura": null,
+      "vencimento": null
+    },
+    {
+      "id": 6,
+      "data": "2026-08-05",
+      "origemTipo": "conta",
+      "origemId": "itau_pf",
+      "categoriaId": "transporte_uber",
+      "descricao": "Uber",
+      "valor": -10.95,
+      "fatura": null,
+      "vencimento": null
+    },
+    {
+      "id": 7,
+      "data": "2026-08-05",
+      "origemTipo": "conta",
+      "origemId": "itau_pf",
+      "categoriaId": "transporte_uber",
+      "descricao": "Uber",
+      "valor": -21.85,
+      "fatura": null,
+      "vencimento": null
+    },
+    {
+      "id": 8,
+      "data": "2026-08-05",
+      "origemTipo": "conta",
+      "origemId": "itau_pf",
+      "categoriaId": "moradia_supermercado",
+      "descricao": "Companhia Brasileira (mercado)",
+      "valor": -14.14,
+      "fatura": null,
+      "vencimento": null
+    },
+    {
+      "id": 9,
+      "data": "2026-08-05",
+      "origemTipo": "conta",
+      "origemId": "itau_pf",
+      "categoriaId": "transporte_uber",
+      "descricao": "Uber",
+      "valor": -12.08,
+      "fatura": null,
+      "vencimento": null
+    },
+    {
+      "id": 10,
+      "data": "2026-08-06",
+      "origemTipo": "conta",
+      "origemId": "itau_pf",
+      "categoriaId": "transporte_uber",
+      "descricao": "Uber",
+      "valor": -9.74,
+      "fatura": null,
+      "vencimento": null
+    },
+    {
+      "id": 11,
+      "data": "2026-08-06",
+      "origemTipo": "conta",
+      "origemId": "itau_pf",
+      "categoriaId": "receita_essential",
+      "descricao": "Depósito em dinheiro",
+      "valor": 260,
+      "fatura": null,
+      "vencimento": null
+    },
+    {
+      "id": 12,
+      "data": "2026-08-06",
+      "origemTipo": "conta",
+      "origemId": "itau_pf",
+      "categoriaId": "parcelamento_itau",
+      "descricao": "Crediário Automático parc 2/11",
+      "valor": -278.28,
+      "fatura": null,
+      "vencimento": null
+    },
+    {
+      "id": 13,
+      "data": "2026-08-10",
+      "origemTipo": "conta",
+      "origemId": "itau_pf",
+      "categoriaId": "emprestimo_mae",
+      "descricao": "PIX Maria C.",
+      "valor": -100,
+      "fatura": null,
+      "vencimento": null
+    },
+    {
+      "id": 14,
+      "data": "2026-08-10",
+      "origemTipo": "conta",
+      "origemId": "itau_pf",
+      "categoriaId": "transporte_uber",
+      "descricao": "Uber",
+      "valor": -14.98,
+      "fatura": null,
+      "vencimento": null
+    },
+    {
+      "id": 15,
+      "data": "2026-08-10",
+      "origemTipo": "conta",
+      "origemId": "itau_pf",
+      "categoriaId": "transporte_uber",
+      "descricao": "99",
+      "valor": -12,
+      "fatura": null,
+      "vencimento": null
+    },
+    {
+      "id": 16,
+      "data": "2026-08-10",
+      "origemTipo": "conta",
+      "origemId": "itau_pf",
+      "categoriaId": "moradia_supermercado",
+      "descricao": "PIX Maria C.",
+      "valor": -100,
+      "fatura": null,
+      "vencimento": null
+    },
+    {
+      "id": 17,
+      "data": "2026-08-10",
+      "origemTipo": "conta",
+      "origemId": "itau_pf",
+      "categoriaId": "moradia_supermercado",
+      "descricao": "PIX Maria C.",
+      "valor": -70,
+      "fatura": null,
+      "vencimento": null
+    },
+    {
+      "id": 18,
+      "data": "2026-08-10",
+      "origemTipo": "conta",
+      "origemId": "itau_pf",
+      "categoriaId": "moradia_supermercado",
+      "descricao": "PIX Saymon",
+      "valor": -400,
+      "fatura": null,
+      "vencimento": null
+    },
+    {
+      "id": 19,
+      "data": "2026-08-10",
+      "origemTipo": "conta",
+      "origemId": "itau_pf",
+      "categoriaId": "transporte_uber",
+      "descricao": "PIX Clemilton",
+      "valor": -14,
+      "fatura": null,
+      "vencimento": null
+    },
+    {
+      "id": 20,
+      "data": "2026-08-10",
+      "origemTipo": "conta",
+      "origemId": "itau_pf",
+      "categoriaId": "parcelamento_movida",
+      "descricao": "PagueVeloz (parcela Movida)",
+      "valor": -96.8,
+      "fatura": null,
+      "vencimento": null
+    },
+    {
+      "id": 21,
+      "data": "2026-08-10",
+      "origemTipo": "conta",
+      "origemId": "itau_pf",
+      "categoriaId": "moradia_supermercado",
+      "descricao": "Supermercado",
+      "valor": -26.03,
+      "fatura": null,
+      "vencimento": null
+    },
+    {
+      "id": 22,
+      "data": "2026-08-10",
+      "origemTipo": "conta",
+      "origemId": "itau_pf",
+      "categoriaId": "parcelamento_itau",
+      "descricao": "Crediário Automático parc 2/11",
+      "valor": -64.03,
+      "fatura": null,
+      "vencimento": null
+    },
+    {
+      "id": 23,
+      "data": "2026-08-10",
+      "origemTipo": "conta",
+      "origemId": "itau_pf",
+      "categoriaId": "emprestimo_mae",
+      "descricao": "PIX recebido Maria C.",
+      "valor": 60,
+      "fatura": null,
+      "vencimento": null
+    },
+    {
+      "id": 24,
+      "data": "2026-08-12",
+      "origemTipo": "conta",
+      "origemId": "itau_pf",
+      "categoriaId": "esa_contador",
+      "descricao": "PIX recebido Maria E.",
+      "valor": 436,
+      "fatura": null,
+      "vencimento": null
+    },
+    {
+      "id": 25,
+      "data": "2026-08-12",
+      "origemTipo": "conta",
+      "origemId": "itau_pf",
+      "categoriaId": "pessoais_restaurantes",
+      "descricao": "iFood",
+      "valor": -25.41,
+      "fatura": null,
+      "vencimento": null
+    },
+    {
+      "id": 26,
+      "data": "2026-08-12",
+      "origemTipo": "conta",
+      "origemId": "itau_pf",
+      "categoriaId": "moradia_supermercado",
+      "descricao": "Distribuidora",
+      "valor": -8.18,
+      "fatura": null,
+      "vencimento": null
+    },
+    {
+      "id": 27,
+      "data": "2026-08-13",
+      "origemTipo": "conta",
+      "origemId": "itau_pf",
+      "categoriaId": "pessoais_restaurantes",
+      "descricao": "iFood",
+      "valor": -36.93,
+      "fatura": null,
+      "vencimento": null
+    },
+    {
+      "id": 28,
+      "data": "2026-08-14",
+      "origemTipo": "conta",
+      "origemId": "itau_pf",
+      "categoriaId": "moradia_banho_mile",
+      "descricao": "PIX Maria C.",
+      "valor": -105,
+      "fatura": null,
+      "vencimento": null
+    },
+    {
+      "id": 29,
+      "data": "2026-08-14",
+      "origemTipo": "conta",
+      "origemId": "itau_pf",
+      "categoriaId": "moradia_supermercado",
+      "descricao": "PIX Maria C.",
+      "valor": -16,
+      "fatura": null,
+      "vencimento": null
+    },
+    {
+      "id": 30,
+      "data": "2026-08-17",
+      "origemTipo": "conta",
+      "origemId": "itau_pf",
+      "categoriaId": "outros_diversos",
+      "descricao": "PIX recebido Lucyendel",
+      "valor": 150,
+      "fatura": null,
+      "vencimento": null
+    },
+    {
+      "id": 31,
+      "data": "2026-08-17",
+      "origemTipo": "conta",
+      "origemId": "itau_pf",
+      "categoriaId": "isaac_recarga_tim",
+      "descricao": "Recarga pré-paga (TIM)",
+      "valor": -20,
+      "fatura": null,
+      "vencimento": null
+    },
+    {
+      "id": 32,
+      "data": "2026-08-17",
+      "origemTipo": "conta",
+      "origemId": "itau_pf",
+      "categoriaId": "pessoais_corte_cabelo",
+      "descricao": "JP Barbearia",
+      "valor": -65,
+      "fatura": null,
+      "vencimento": null
+    },
+    {
+      "id": 33,
+      "data": "2026-08-17",
+      "origemTipo": "conta",
+      "origemId": "itau_pf",
+      "categoriaId": "pessoais_restaurantes",
+      "descricao": "iFood",
+      "valor": -38.08,
+      "fatura": null,
+      "vencimento": null
+    },
+    {
+      "id": 34,
+      "data": "2026-08-17",
+      "origemTipo": "conta",
+      "origemId": "itau_pf",
+      "categoriaId": "pessoais_restaurantes",
+      "descricao": "iFood",
+      "valor": -42.98,
+      "fatura": null,
+      "vencimento": null
+    },
+    {
+      "id": 35,
+      "data": "2026-08-17",
+      "origemTipo": "conta",
+      "origemId": "itau_pf",
+      "categoriaId": "outros_compras",
+      "descricao": "PIX Alisson",
+      "valor": -5,
+      "fatura": null,
+      "vencimento": null
+    },
+    {
+      "id": 36,
+      "data": "2026-08-17",
+      "origemTipo": "conta",
+      "origemId": "itau_pf",
+      "categoriaId": "moradia_supermercado",
+      "descricao": "Companhia Brasileira (mercado)",
+      "valor": -4.76,
+      "fatura": null,
+      "vencimento": null
+    },
+    {
+      "id": 37,
+      "data": "2026-08-18",
+      "origemTipo": "conta",
+      "origemId": "itau_pf",
+      "categoriaId": "moradia_supermercado",
+      "descricao": "Distribuidora",
+      "valor": -20.78,
+      "fatura": null,
+      "vencimento": null
+    },
+    {
+      "id": 38,
+      "data": "2026-08-01",
+      "origemTipo": "conta",
+      "origemId": "bb",
+      "categoriaId": "transporte_uber",
+      "descricao": "99",
+      "valor": -12,
+      "fatura": null,
+      "vencimento": null
+    },
+    {
+      "id": 39,
+      "data": "2026-08-01",
+      "origemTipo": "conta",
+      "origemId": "bb",
+      "categoriaId": "transporte_uber",
+      "descricao": "Uber",
+      "valor": -8.93,
+      "fatura": null,
+      "vencimento": null
+    },
+    {
+      "id": 40,
+      "data": "2026-08-01",
+      "origemTipo": "conta",
+      "origemId": "bb",
+      "categoriaId": "transporte_uber",
+      "descricao": "Uber",
+      "valor": -22.04,
+      "fatura": null,
+      "vencimento": null
+    },
+    {
+      "id": 41,
+      "data": "2026-08-01",
+      "origemTipo": "conta",
+      "origemId": "bb",
+      "categoriaId": "transporte_uber",
+      "descricao": "Uber",
+      "valor": -16.83,
+      "fatura": null,
+      "vencimento": null
+    },
+    {
+      "id": 42,
+      "data": "2026-08-02",
+      "origemTipo": "conta",
+      "origemId": "bb",
+      "categoriaId": "transporte_uber",
+      "descricao": "99",
+      "valor": -17.5,
+      "fatura": null,
+      "vencimento": null
+    },
+    {
+      "id": 43,
+      "data": "2026-08-02",
+      "origemTipo": "conta",
+      "origemId": "bb",
+      "categoriaId": "transporte_uber",
+      "descricao": "Uber",
+      "valor": -14.2,
+      "fatura": null,
+      "vencimento": null
+    },
+    {
+      "id": 44,
+      "data": "2026-08-02",
+      "origemTipo": "conta",
+      "origemId": "bb",
+      "categoriaId": "moradia_supermercado",
+      "descricao": "Supermercado Cometa",
+      "valor": -84.6,
+      "fatura": null,
+      "vencimento": null
+    },
+    {
+      "id": 45,
+      "data": "2026-08-03",
+      "origemTipo": "conta",
+      "origemId": "bb",
+      "categoriaId": "transporte_uber",
+      "descricao": "Uber",
+      "valor": -8.58,
+      "fatura": null,
+      "vencimento": null
+    },
+    {
+      "id": 46,
+      "data": "2026-08-03",
+      "origemTipo": "conta",
+      "origemId": "bb",
+      "categoriaId": "transporte_uber",
+      "descricao": "Uber",
+      "valor": -8.22,
+      "fatura": null,
+      "vencimento": null
+    },
+    {
+      "id": 47,
+      "data": "2026-08-04",
+      "origemTipo": "conta",
+      "origemId": "bb",
+      "categoriaId": "transporte_uber",
+      "descricao": "Uber",
+      "valor": -10.13,
+      "fatura": null,
+      "vencimento": null
+    },
+    {
+      "id": 48,
+      "data": "2026-08-04",
+      "origemTipo": "conta",
+      "origemId": "bb",
+      "categoriaId": "transporte_uber",
+      "descricao": "Uber",
+      "valor": -8.3,
+      "fatura": null,
+      "vencimento": null
+    },
+    {
+      "id": 49,
+      "data": "2026-08-04",
+      "origemTipo": "conta",
+      "origemId": "bb",
+      "categoriaId": "transporte_uber",
+      "descricao": "Uber",
+      "valor": -9.13,
+      "fatura": null,
+      "vencimento": null
+    },
+    {
+      "id": 50,
+      "data": "2026-08-04",
+      "origemTipo": "conta",
+      "origemId": "bb",
+      "categoriaId": "transporte_uber",
+      "descricao": "Uber",
+      "valor": -8.93,
+      "fatura": null,
+      "vencimento": null
+    },
+    {
+      "id": 51,
+      "data": "2026-08-06",
+      "origemTipo": "conta",
+      "origemId": "bb",
+      "categoriaId": "outros_compras",
+      "descricao": "PIX enviado (transf. interna)",
+      "valor": -8.42,
+      "fatura": null,
+      "vencimento": null
+    },
+    {
+      "id": 52,
+      "data": "2026-08-04",
+      "origemTipo": "conta",
+      "origemId": "inter_pf",
+      "categoriaId": "transporte_uber",
+      "descricao": "Uber",
+      "valor": -10.08,
+      "fatura": null,
+      "vencimento": null
+    },
+    {
+      "id": 53,
+      "data": "2026-08-08",
+      "origemTipo": "conta",
+      "origemId": "inter_pf",
+      "categoriaId": "custom_transfer_ncias_mszy4jo9",
+      "descricao": "Recebido ESA Serviços (transf. interna)",
+      "valor": 500,
+      "fatura": null,
+      "vencimento": null
+    },
+    {
+      "id": 54,
+      "data": "2026-08-10",
+      "origemTipo": "conta",
+      "origemId": "inter_pf",
+      "categoriaId": "custom_pagamento_fatura_cart_o_mszy27c7",
+      "descricao": "Pagamento fatura cartão Inter (1/2)",
+      "valor": -960,
+      "fatura": null,
+      "vencimento": null
+    },
+    {
+      "id": 55,
+      "data": "2026-08-10",
+      "origemTipo": "conta",
+      "origemId": "inter_pf",
+      "categoriaId": "moradia_supermercado",
+      "descricao": "PIX Maria Clara",
+      "valor": -295,
+      "fatura": null,
+      "vencimento": null
+    },
+    {
+      "id": 56,
+      "data": "2026-08-10",
+      "origemTipo": "conta",
+      "origemId": "inter_pf",
+      "categoriaId": "isaac_corte_cabelo",
+      "descricao": "PIX Lucyendel Ferreira",
+      "valor": -40,
+      "fatura": null,
+      "vencimento": null
+    },
+    {
+      "id": 57,
+      "data": "2026-08-10",
+      "origemTipo": "conta",
+      "origemId": "inter_pf",
+      "categoriaId": "custom_transfer_ncias_mszy4jo9",
+      "descricao": "Recebido ESA Serviços (transf. interna)",
+      "valor": 1180,
+      "fatura": null,
+      "vencimento": null
+    },
+    {
+      "id": 58,
+      "data": "2026-08-10",
+      "origemTipo": "conta",
+      "origemId": "inter_pf",
+      "categoriaId": "moradia_supermercado",
+      "descricao": "PIX Saymon Costa das Merces",
+      "valor": -325.4,
+      "fatura": null,
+      "vencimento": null
+    },
+    {
+      "id": 59,
+      "data": "2026-08-10",
+      "origemTipo": "conta",
+      "origemId": "inter_pf",
+      "categoriaId": "transporte_uber",
+      "descricao": "99",
+      "valor": -15.6,
+      "fatura": null,
+      "vencimento": null
+    },
+    {
+      "id": 60,
+      "data": "2026-08-10",
+      "origemTipo": "conta",
+      "origemId": "inter_pf",
+      "categoriaId": "transporte_uber",
+      "descricao": "Uber",
+      "valor": -23.97,
+      "fatura": null,
+      "vencimento": null
+    },
+    {
+      "id": 61,
+      "data": "2026-08-10",
+      "origemTipo": "conta",
+      "origemId": "inter_pf",
+      "categoriaId": "transporte_uber",
+      "descricao": "Uber",
+      "valor": -9.3,
+      "fatura": null,
+      "vencimento": null
+    },
+    {
+      "id": 62,
+      "data": "2026-08-10",
+      "origemTipo": "conta",
+      "origemId": "inter_pf",
+      "categoriaId": "transporte_uber",
+      "descricao": "Uber (estorno)",
+      "valor": 24.96,
+      "fatura": null,
+      "vencimento": null
+    },
+    {
+      "id": 63,
+      "data": "2026-08-10",
+      "origemTipo": "conta",
+      "origemId": "inter_pf",
+      "categoriaId": "transporte_uber",
+      "descricao": "Uber",
+      "valor": -24.96,
+      "fatura": null,
+      "vencimento": null
+    },
+    {
+      "id": 64,
+      "data": "2026-08-10",
+      "origemTipo": "conta",
+      "origemId": "inter_pf",
+      "categoriaId": "transporte_uber",
+      "descricao": "99",
+      "valor": -17.4,
+      "fatura": null,
+      "vencimento": null
+    },
+    {
+      "id": 65,
+      "data": "2026-08-14",
+      "origemTipo": "conta",
+      "origemId": "inter_pf",
+      "categoriaId": "custom_pagamento_fatura_cart_o_mszy27c7",
+      "descricao": "Resgate CDB",
+      "valor": 915.34,
+      "fatura": null,
+      "vencimento": null
+    },
+    {
+      "id": 66,
+      "data": "2026-08-14",
+      "origemTipo": "conta",
+      "origemId": "inter_pf",
+      "categoriaId": "custom_pagamento_fatura_cart_o_mszy27c7",
+      "descricao": "Pagamento fatura cartão Inter (2/2)",
+      "valor": -915.34,
+      "fatura": null,
+      "vencimento": null
+    },
+    {
+      "id": 67,
+      "data": "2026-08-07",
+      "origemTipo": "conta",
+      "origemId": "esa_pj",
+      "categoriaId": "receita_dnx",
+      "descricao": "Receita DNX Comércio de Móveis",
+      "valor": 3055,
+      "fatura": null,
+      "vencimento": null
+    },
+    {
+      "id": 68,
+      "data": "2026-08-07",
+      "origemTipo": "conta",
+      "origemId": "esa_pj",
+      "categoriaId": "transporte_uber",
+      "descricao": "99",
+      "valor": -12.5,
+      "fatura": null,
+      "vencimento": null
+    },
+    {
+      "id": 69,
+      "data": "2026-08-07",
+      "origemTipo": "conta",
+      "origemId": "esa_pj",
+      "categoriaId": "transporte_uber",
+      "descricao": "99",
+      "valor": -20.5,
+      "fatura": null,
+      "vencimento": null
+    },
+    {
+      "id": 70,
+      "data": "2026-08-08",
+      "origemTipo": "conta",
+      "origemId": "esa_pj",
+      "categoriaId": "moradia_energia",
+      "descricao": "Enel (energia)",
+      "valor": -245.05,
+      "fatura": null,
+      "vencimento": null
+    },
+    {
+      "id": 71,
+      "data": "2026-08-08",
+      "origemTipo": "conta",
+      "origemId": "esa_pj",
+      "categoriaId": "transporte_uber",
+      "descricao": "Uber",
+      "valor": -1.92,
+      "fatura": null,
+      "vencimento": null
+    },
+    {
+      "id": 72,
+      "data": "2026-08-09",
+      "origemTipo": "conta",
+      "origemId": "esa_pj",
+      "categoriaId": "esa_coworking",
+      "descricao": "Center Office Virtual",
+      "valor": -88.21,
+      "fatura": null,
+      "vencimento": null
+    },
+    {
+      "id": 73,
+      "data": "2026-08-17",
+      "origemTipo": "conta",
+      "origemId": "esa_pj",
+      "categoriaId": "esa_contador",
+      "descricao": "PIX Francisco de Paula Araújo Neto (possível contador)",
+      "valor": -1000,
+      "fatura": null,
+      "vencimento": null
+    },
+    {
+      "id": 74,
+      "data": "2026-08-17",
+      "origemTipo": "conta",
+      "origemId": "esa_pj",
+      "categoriaId": "receita_hp",
+      "descricao": "Receita Heavy Protein (NF HP)",
+      "valor": 16574.6,
+      "fatura": null,
+      "vencimento": null
+    },
+    {
+      "id": 75,
+      "data": "2026-05-30",
+      "origemTipo": "cartao",
+      "origemId": "itau_platinum",
+      "categoriaId": "outros_compras",
+      "descricao": "Asaas*JG Negoc (parcela)",
+      "valor": -13.22,
+      "fatura": "2026-08",
+      "vencimento": "2026-08-21"
+    },
+    {
+      "id": 76,
+      "data": "2026-07-26",
+      "origemTipo": "cartao",
+      "origemId": "itau_platinum",
+      "categoriaId": "pessoais_viagens",
+      "descricao": "EventosPG Eusébio (ingresso)",
+      "valor": -25,
+      "fatura": "2026-08",
+      "vencimento": "2026-08-21"
+    },
+    {
+      "id": 77,
+      "data": "2026-07-26",
+      "origemTipo": "cartao",
+      "origemId": "itau_platinum",
+      "categoriaId": "pessoais_viagens",
+      "descricao": "EventosPG Eusébio (ingresso)",
+      "valor": -25,
+      "fatura": "2026-08",
+      "vencimento": "2026-08-21"
+    },
+    {
+      "id": 78,
+      "data": "2026-07-26",
+      "origemTipo": "cartao",
+      "origemId": "itau_platinum",
+      "categoriaId": "pessoais_viagens",
+      "descricao": "EventosPG Eusébio (ingresso)",
+      "valor": -13,
+      "fatura": "2026-08",
+      "vencimento": "2026-08-21"
+    },
+    {
+      "id": 79,
+      "data": "2026-07-26",
+      "origemTipo": "cartao",
+      "origemId": "itau_platinum",
+      "categoriaId": "pessoais_direcao",
+      "descricao": "PG*Vemar Editora (educação)",
+      "valor": -59.9,
+      "fatura": "2026-08",
+      "vencimento": "2026-08-21"
+    },
+    {
+      "id": 80,
+      "data": "2026-07-27",
+      "origemTipo": "cartao",
+      "origemId": "itau_platinum",
+      "categoriaId": "transporte_uber",
+      "descricao": "DL*99 Ride São Paulo",
+      "valor": -3,
+      "fatura": "2026-08",
+      "vencimento": "2026-08-21"
+    },
+    {
+      "id": 81,
+      "data": "2026-08-04",
+      "origemTipo": "cartao",
+      "origemId": "itau_platinum",
+      "categoriaId": "transporte_uber",
+      "descricao": "DL*99 Ride São Paulo",
+      "valor": -18.6,
+      "fatura": "2026-08",
+      "vencimento": "2026-08-21"
+    },
+    {
+      "id": 82,
+      "data": "2026-08-05",
+      "origemTipo": "cartao",
+      "origemId": "itau_platinum",
+      "categoriaId": "transporte_uber",
+      "descricao": "DL*Uber Rides São Paulo",
+      "valor": -8.75,
+      "fatura": "2026-08",
+      "vencimento": "2026-08-21"
+    },
+    {
+      "id": 83,
+      "data": "2026-08-14",
+      "origemTipo": "cartao",
+      "origemId": "itau_platinum",
+      "categoriaId": "moradia_juros",
+      "descricao": "Encargos financeiros (rotativo/mora/IOF)",
+      "valor": -7.11,
+      "fatura": "2026-08",
+      "vencimento": "2026-08-21"
+    },
+    {
+      "id": 84,
+      "data": "2026-07-26",
+      "origemTipo": "cartao",
+      "origemId": "itau_0705",
+      "categoriaId": "pessoais_ia",
+      "descricao": "DL*Google One",
+      "valor": -4.5,
+      "fatura": "2026-08",
+      "vencimento": "2026-08-25"
+    },
+    {
+      "id": 85,
+      "data": "2026-07-27",
+      "origemTipo": "cartao",
+      "origemId": "itau_0705",
+      "categoriaId": "transporte_uber",
+      "descricao": "DL*Uber Rides São Paulo",
+      "valor": -7.03,
+      "fatura": "2026-08",
+      "vencimento": "2026-08-25"
+    },
+    {
+      "id": 86,
+      "data": "2026-07-27",
+      "origemTipo": "cartao",
+      "origemId": "itau_0705",
+      "categoriaId": "transporte_uber",
+      "descricao": "Uber*Pending São Paulo",
+      "valor": -12.23,
+      "fatura": "2026-08",
+      "vencimento": "2026-08-25"
+    },
+    {
+      "id": 87,
+      "data": "2026-07-27",
+      "origemTipo": "cartao",
+      "origemId": "itau_0705",
+      "categoriaId": "transporte_uber",
+      "descricao": "DL*Uber Rides São Paulo",
+      "valor": -11.94,
+      "fatura": "2026-08",
+      "vencimento": "2026-08-25"
+    },
+    {
+      "id": 88,
+      "data": "2026-07-27",
+      "origemTipo": "cartao",
+      "origemId": "itau_0705",
+      "categoriaId": "transporte_uber",
+      "descricao": "DL*Uber Rides São Paulo",
+      "valor": -11.88,
+      "fatura": "2026-08",
+      "vencimento": "2026-08-25"
+    },
+    {
+      "id": 89,
+      "data": "2026-07-27",
+      "origemTipo": "cartao",
+      "origemId": "itau_0705",
+      "categoriaId": "transporte_uber",
+      "descricao": "DL*Uber Rides São Paulo",
+      "valor": -13.56,
+      "fatura": "2026-08",
+      "vencimento": "2026-08-25"
+    },
+    {
+      "id": 90,
+      "data": "2026-07-28",
+      "origemTipo": "cartao",
+      "origemId": "itau_0705",
+      "categoriaId": "transporte_uber",
+      "descricao": "DL*Uber Rides São Paulo",
+      "valor": -8.56,
+      "fatura": "2026-08",
+      "vencimento": "2026-08-25"
+    },
+    {
+      "id": 91,
+      "data": "2026-07-28",
+      "origemTipo": "cartao",
+      "origemId": "itau_0705",
+      "categoriaId": "transporte_uber",
+      "descricao": "DL*Uber Rides São Paulo",
+      "valor": -44.09,
+      "fatura": "2026-08",
+      "vencimento": "2026-08-25"
+    },
+    {
+      "id": 92,
+      "data": "2026-07-29",
+      "origemTipo": "cartao",
+      "origemId": "itau_0705",
+      "categoriaId": "transporte_uber",
+      "descricao": "DL*Uber Rides São Paulo",
+      "valor": -6.52,
+      "fatura": "2026-08",
+      "vencimento": "2026-08-25"
+    },
+    {
+      "id": 93,
+      "data": "2026-07-29",
+      "origemTipo": "cartao",
+      "origemId": "itau_0705",
+      "categoriaId": "transporte_uber",
+      "descricao": "DL*Uber Rides São Paulo",
+      "valor": -14.3,
+      "fatura": "2026-08",
+      "vencimento": "2026-08-25"
+    },
+    {
+      "id": 94,
+      "data": "2026-07-30",
+      "origemTipo": "cartao",
+      "origemId": "itau_0705",
+      "categoriaId": "transporte_uber",
+      "descricao": "DL*Uber Rides São Paulo",
+      "valor": -9.5,
+      "fatura": "2026-08",
+      "vencimento": "2026-08-25"
+    },
+    {
+      "id": 95,
+      "data": "2026-07-25",
+      "origemTipo": "cartao",
+      "origemId": "itau_0705",
+      "categoriaId": "custom_transfer_ncias_mszy4jo9",
+      "descricao": "Saldo fatura anterior (lançamentos internacionais)",
+      "valor": -55.89,
+      "fatura": "2026-08",
+      "vencimento": "2026-08-25"
+    },
+    {
+      "id": 96,
+      "data": "2026-07-03",
+      "origemTipo": "cartao",
+      "origemId": "inter_card",
+      "categoriaId": "transporte_uber",
+      "descricao": "DL*Uber Rides / 99App",
+      "valor": -12.26,
+      "fatura": "2026-08",
+      "vencimento": "2026-08-10"
+    },
+    {
+      "id": 97,
+      "data": "2026-07-03",
+      "origemTipo": "cartao",
+      "origemId": "inter_card",
+      "categoriaId": "transporte_uber",
+      "descricao": "DL*Uber Rides / 99App",
+      "valor": -15.87,
+      "fatura": "2026-08",
+      "vencimento": "2026-08-10"
+    },
+    {
+      "id": 98,
+      "data": "2026-07-03",
+      "origemTipo": "cartao",
+      "origemId": "inter_card",
+      "categoriaId": "transporte_uber",
+      "descricao": "DL*Uber Rides / 99App",
+      "valor": -16.72,
+      "fatura": "2026-08",
+      "vencimento": "2026-08-10"
+    },
+    {
+      "id": 99,
+      "data": "2026-07-03",
+      "origemTipo": "cartao",
+      "origemId": "inter_card",
+      "categoriaId": "transporte_uber",
+      "descricao": "DL*Uber Rides / 99App",
+      "valor": -10.75,
+      "fatura": "2026-08",
+      "vencimento": "2026-08-10"
+    },
+    {
+      "id": 100,
+      "data": "2026-07-04",
+      "origemTipo": "cartao",
+      "origemId": "inter_card",
+      "categoriaId": "transporte_uber",
+      "descricao": "DL*Uber Rides / 99App",
+      "valor": -15.8,
+      "fatura": "2026-08",
+      "vencimento": "2026-08-10"
+    },
+    {
+      "id": 101,
+      "data": "2026-07-04",
+      "origemTipo": "cartao",
+      "origemId": "inter_card",
+      "categoriaId": "transporte_uber",
+      "descricao": "DL*Uber Rides / 99App",
+      "valor": -11.79,
+      "fatura": "2026-08",
+      "vencimento": "2026-08-10"
+    },
+    {
+      "id": 102,
+      "data": "2026-07-04",
+      "origemTipo": "cartao",
+      "origemId": "inter_card",
+      "categoriaId": "transporte_uber",
+      "descricao": "DL*Uber Rides / 99App",
+      "valor": -11.37,
+      "fatura": "2026-08",
+      "vencimento": "2026-08-10"
+    },
+    {
+      "id": 103,
+      "data": "2026-07-05",
+      "origemTipo": "cartao",
+      "origemId": "inter_card",
+      "categoriaId": "transporte_uber",
+      "descricao": "DL*Uber Rides / 99App",
+      "valor": -17.35,
+      "fatura": "2026-08",
+      "vencimento": "2026-08-10"
+    },
+    {
+      "id": 104,
+      "data": "2026-07-05",
+      "origemTipo": "cartao",
+      "origemId": "inter_card",
+      "categoriaId": "transporte_uber",
+      "descricao": "DL*Uber Rides / 99App",
+      "valor": -19.21,
+      "fatura": "2026-08",
+      "vencimento": "2026-08-10"
+    },
+    {
+      "id": 105,
+      "data": "2026-07-05",
+      "origemTipo": "cartao",
+      "origemId": "inter_card",
+      "categoriaId": "transporte_uber",
+      "descricao": "DL*Uber Rides / 99App",
+      "valor": -35.02,
+      "fatura": "2026-08",
+      "vencimento": "2026-08-10"
+    },
+    {
+      "id": 106,
+      "data": "2026-07-05",
+      "origemTipo": "cartao",
+      "origemId": "inter_card",
+      "categoriaId": "transporte_uber",
+      "descricao": "DL*Uber Rides / 99App",
+      "valor": -5.79,
+      "fatura": "2026-08",
+      "vencimento": "2026-08-10"
+    },
+    {
+      "id": 107,
+      "data": "2026-07-05",
+      "origemTipo": "cartao",
+      "origemId": "inter_card",
+      "categoriaId": "transporte_uber",
+      "descricao": "DL*Uber Rides / 99App",
+      "valor": -55.33,
+      "fatura": "2026-08",
+      "vencimento": "2026-08-10"
+    },
+    {
+      "id": 108,
+      "data": "2026-07-05",
+      "origemTipo": "cartao",
+      "origemId": "inter_card",
+      "categoriaId": "transporte_uber",
+      "descricao": "DL*Uber Rides / 99App",
+      "valor": -12.41,
+      "fatura": "2026-08",
+      "vencimento": "2026-08-10"
+    },
+    {
+      "id": 109,
+      "data": "2026-07-06",
+      "origemTipo": "cartao",
+      "origemId": "inter_card",
+      "categoriaId": "transporte_uber",
+      "descricao": "DL*Uber Rides / 99App",
+      "valor": -8.35,
+      "fatura": "2026-08",
+      "vencimento": "2026-08-10"
+    },
+    {
+      "id": 110,
+      "data": "2026-07-06",
+      "origemTipo": "cartao",
+      "origemId": "inter_card",
+      "categoriaId": "transporte_uber",
+      "descricao": "DL*Uber Rides / 99App",
+      "valor": -12.14,
+      "fatura": "2026-08",
+      "vencimento": "2026-08-10"
+    },
+    {
+      "id": 111,
+      "data": "2026-07-06",
+      "origemTipo": "cartao",
+      "origemId": "inter_card",
+      "categoriaId": "transporte_uber",
+      "descricao": "DL*Uber Rides / 99App",
+      "valor": -8.1,
+      "fatura": "2026-08",
+      "vencimento": "2026-08-10"
+    },
+    {
+      "id": 112,
+      "data": "2026-07-07",
+      "origemTipo": "cartao",
+      "origemId": "inter_card",
+      "categoriaId": "transporte_uber",
+      "descricao": "DL*Uber Rides / 99App",
+      "valor": -12.38,
+      "fatura": "2026-08",
+      "vencimento": "2026-08-10"
+    },
+    {
+      "id": 113,
+      "data": "2026-07-07",
+      "origemTipo": "cartao",
+      "origemId": "inter_card",
+      "categoriaId": "transporte_uber",
+      "descricao": "DL*Uber Rides / 99App",
+      "valor": -5.74,
+      "fatura": "2026-08",
+      "vencimento": "2026-08-10"
+    },
+    {
+      "id": 114,
+      "data": "2026-07-08",
+      "origemTipo": "cartao",
+      "origemId": "inter_card",
+      "categoriaId": "transporte_uber",
+      "descricao": "DL*Uber Rides / 99App",
+      "valor": -19.9,
+      "fatura": "2026-08",
+      "vencimento": "2026-08-10"
+    },
+    {
+      "id": 115,
+      "data": "2026-07-08",
+      "origemTipo": "cartao",
+      "origemId": "inter_card",
+      "categoriaId": "transporte_uber",
+      "descricao": "DL*Uber Rides / 99App",
+      "valor": -12.38,
+      "fatura": "2026-08",
+      "vencimento": "2026-08-10"
+    },
+    {
+      "id": 116,
+      "data": "2026-07-08",
+      "origemTipo": "cartao",
+      "origemId": "inter_card",
+      "categoriaId": "transporte_uber",
+      "descricao": "DL*Uber Rides / 99App",
+      "valor": -9.21,
+      "fatura": "2026-08",
+      "vencimento": "2026-08-10"
+    },
+    {
+      "id": 117,
+      "data": "2026-07-09",
+      "origemTipo": "cartao",
+      "origemId": "inter_card",
+      "categoriaId": "transporte_uber",
+      "descricao": "DL*Uber Rides / 99App",
+      "valor": -9.7,
+      "fatura": "2026-08",
+      "vencimento": "2026-08-10"
+    },
+    {
+      "id": 118,
+      "data": "2026-07-09",
+      "origemTipo": "cartao",
+      "origemId": "inter_card",
+      "categoriaId": "transporte_uber",
+      "descricao": "DL*Uber Rides / 99App",
+      "valor": -15.5,
+      "fatura": "2026-08",
+      "vencimento": "2026-08-10"
+    },
+    {
+      "id": 119,
+      "data": "2026-07-10",
+      "origemTipo": "cartao",
+      "origemId": "inter_card",
+      "categoriaId": "transporte_uber",
+      "descricao": "DL*Uber Rides / 99App",
+      "valor": -5.97,
+      "fatura": "2026-08",
+      "vencimento": "2026-08-10"
+    },
+    {
+      "id": 120,
+      "data": "2026-07-10",
+      "origemTipo": "cartao",
+      "origemId": "inter_card",
+      "categoriaId": "transporte_uber",
+      "descricao": "DL*Uber Rides / 99App",
+      "valor": -10.7,
+      "fatura": "2026-08",
+      "vencimento": "2026-08-10"
+    },
+    {
+      "id": 121,
+      "data": "2026-07-11",
+      "origemTipo": "cartao",
+      "origemId": "inter_card",
+      "categoriaId": "transporte_uber",
+      "descricao": "DL*Uber Rides / 99App",
+      "valor": -24.61,
+      "fatura": "2026-08",
+      "vencimento": "2026-08-10"
+    },
+    {
+      "id": 122,
+      "data": "2026-07-13",
+      "origemTipo": "cartao",
+      "origemId": "inter_card",
+      "categoriaId": "transporte_uber",
+      "descricao": "DL*Uber Rides / 99App",
+      "valor": -12.53,
+      "fatura": "2026-08",
+      "vencimento": "2026-08-10"
+    },
+    {
+      "id": 123,
+      "data": "2026-07-14",
+      "origemTipo": "cartao",
+      "origemId": "inter_card",
+      "categoriaId": "transporte_uber",
+      "descricao": "DL*Uber Rides / 99App",
+      "valor": -7.31,
+      "fatura": "2026-08",
+      "vencimento": "2026-08-10"
+    },
+    {
+      "id": 124,
+      "data": "2026-07-15",
+      "origemTipo": "cartao",
+      "origemId": "inter_card",
+      "categoriaId": "transporte_uber",
+      "descricao": "DL*Uber Rides / 99App",
+      "valor": -11.22,
+      "fatura": "2026-08",
+      "vencimento": "2026-08-10"
+    },
+    {
+      "id": 125,
+      "data": "2026-07-16",
+      "origemTipo": "cartao",
+      "origemId": "inter_card",
+      "categoriaId": "transporte_uber",
+      "descricao": "DL*Uber Rides / 99App",
+      "valor": -14.83,
+      "fatura": "2026-08",
+      "vencimento": "2026-08-10"
+    },
+    {
+      "id": 126,
+      "data": "2026-07-17",
+      "origemTipo": "cartao",
+      "origemId": "inter_card",
+      "categoriaId": "moradia_supermercado",
+      "descricao": "Supermercado Cometa",
+      "valor": -255.75,
+      "fatura": "2026-08",
+      "vencimento": "2026-08-10"
+    },
+    {
+      "id": 127,
+      "data": "2026-07-17",
+      "origemTipo": "cartao",
+      "origemId": "inter_card",
+      "categoriaId": "moradia_supermercado",
+      "descricao": "Francisco Magno Luc",
+      "valor": -16,
+      "fatura": "2026-08",
+      "vencimento": "2026-08-10"
+    },
+    {
+      "id": 128,
+      "data": "2026-07-17",
+      "origemTipo": "cartao",
+      "origemId": "inter_card",
+      "categoriaId": "moradia_supermercado",
+      "descricao": "Ancora Distribuidora",
+      "valor": -145.63,
+      "fatura": "2026-08",
+      "vencimento": "2026-08-10"
+    },
+    {
+      "id": 129,
+      "data": "2026-07-17",
+      "origemTipo": "cartao",
+      "origemId": "inter_card",
+      "categoriaId": "transporte_uber",
+      "descricao": "DL*Uber Rides / 99App",
+      "valor": -13.9,
+      "fatura": "2026-08",
+      "vencimento": "2026-08-10"
+    },
+    {
+      "id": 130,
+      "data": "2026-07-18",
+      "origemTipo": "cartao",
+      "origemId": "inter_card",
+      "categoriaId": "transporte_uber",
+      "descricao": "DL*Uber Rides / 99App",
+      "valor": -19.48,
+      "fatura": "2026-08",
+      "vencimento": "2026-08-10"
+    },
+    {
+      "id": 131,
+      "data": "2026-07-20",
+      "origemTipo": "cartao",
+      "origemId": "inter_card",
+      "categoriaId": "transporte_uber",
+      "descricao": "DL*Uber Rides / 99App",
+      "valor": -7.41,
+      "fatura": "2026-08",
+      "vencimento": "2026-08-10"
+    },
+    {
+      "id": 132,
+      "data": "2026-07-27",
+      "origemTipo": "cartao",
+      "origemId": "inter_card",
+      "categoriaId": "transporte_uber",
+      "descricao": "DL*Uber Rides / 99App",
+      "valor": -6.79,
+      "fatura": "2026-08",
+      "vencimento": "2026-08-10"
+    },
+    {
+      "id": 133,
+      "data": "2026-07-10",
+      "origemTipo": "cartao",
+      "origemId": "inter_card",
+      "categoriaId": "custom_pagamento_fatura_cart_o_mszy27c7",
+      "descricao": "Pgto fatura CDB Crédito (estorno)",
+      "valor": 127.19,
+      "fatura": "2026-08",
+      "vencimento": "2026-08-10"
+    },
+    {
+      "id": 134,
+      "data": "2026-07-18",
+      "origemTipo": "cartao",
+      "origemId": "inter_card",
+      "categoriaId": "custom_pagamento_fatura_cart_o_mszy27c7",
+      "descricao": "Pagamento online (crédito na fatura)",
+      "valor": 50,
+      "fatura": "2026-08",
+      "vencimento": "2026-08-10"
+    },
+    {
+      "id": 135,
+      "data": "2026-02-06",
+      "origemTipo": "cartao",
+      "origemId": "inter_card",
+      "categoriaId": "isaac_livro",
+      "descricao": "Livraria Evolução (parcela 6/10)",
+      "valor": -324.9,
+      "fatura": "2026-08",
+      "vencimento": "2026-08-10"
+    },
+    {
+      "id": 136,
+      "data": "2026-07-03",
+      "origemTipo": "cartao",
+      "origemId": "inter_card",
+      "categoriaId": "moradia_supermercado",
+      "descricao": "ASSB Comércio Varejista",
+      "valor": -32.98,
+      "fatura": "2026-08",
+      "vencimento": "2026-08-10"
+    },
+    {
+      "id": 137,
+      "data": "2026-07-03",
+      "origemTipo": "cartao",
+      "origemId": "inter_card",
+      "categoriaId": "pessoais_restaurantes",
+      "descricao": "Viva Gula",
+      "valor": -27.39,
+      "fatura": "2026-08",
+      "vencimento": "2026-08-10"
+    },
+    {
+      "id": 138,
+      "data": "2026-07-03",
+      "origemTipo": "cartao",
+      "origemId": "inter_card",
+      "categoriaId": "outros_saude",
+      "descricao": "Drogasil 1761",
+      "valor": -30.63,
+      "fatura": "2026-08",
+      "vencimento": "2026-08-10"
+    },
+    {
+      "id": 139,
+      "data": "2026-07-04",
+      "origemTipo": "cartao",
+      "origemId": "inter_card",
+      "categoriaId": "pessoais_direcao",
+      "descricao": "Senac (curso)",
+      "valor": -49.3,
+      "fatura": "2026-08",
+      "vencimento": "2026-08-10"
+    },
+    {
+      "id": 140,
+      "data": "2026-07-04",
+      "origemTipo": "cartao",
+      "origemId": "inter_card",
+      "categoriaId": "outros_compras",
+      "descricao": "Amazon Mktplace*RK Store",
+      "valor": -139,
+      "fatura": "2026-08",
+      "vencimento": "2026-08-10"
+    },
+    {
+      "id": 141,
+      "data": "2026-07-06",
+      "origemTipo": "cartao",
+      "origemId": "inter_card",
+      "categoriaId": "pessoais_restaurantes",
+      "descricao": "Frigideira (restaurante)",
+      "valor": -38.12,
+      "fatura": "2026-08",
+      "vencimento": "2026-08-10"
+    },
+    {
+      "id": 142,
+      "data": "2026-07-07",
+      "origemTipo": "cartao",
+      "origemId": "inter_card",
+      "categoriaId": "pessoais_academia",
+      "descricao": "TotalPass",
+      "valor": -149.9,
+      "fatura": "2026-08",
+      "vencimento": "2026-08-10"
+    },
+    {
+      "id": 143,
+      "data": "2026-07-07",
+      "origemTipo": "cartao",
+      "origemId": "inter_card",
+      "categoriaId": "moradia_supermercado",
+      "descricao": "Pão de Açúcar",
+      "valor": -19.82,
+      "fatura": "2026-08",
+      "vencimento": "2026-08-10"
+    },
+    {
+      "id": 144,
+      "data": "2026-07-08",
+      "origemTipo": "cartao",
+      "origemId": "inter_card",
+      "categoriaId": "pessoais_restaurantes",
+      "descricao": "Restaurante O",
+      "valor": -42.88,
+      "fatura": "2026-08",
+      "vencimento": "2026-08-10"
+    },
+    {
+      "id": 145,
+      "data": "2026-07-08",
+      "origemTipo": "cartao",
+      "origemId": "inter_card",
+      "categoriaId": "moradia_supermercado",
+      "descricao": "Mercadinho São Luiz",
+      "valor": -16.58,
+      "fatura": "2026-08",
+      "vencimento": "2026-08-10"
+    },
+    {
+      "id": 146,
+      "data": "2026-07-09",
+      "origemTipo": "cartao",
+      "origemId": "inter_card",
+      "categoriaId": "moradia_supermercado",
+      "descricao": "Pão de Açúcar",
+      "valor": -35.54,
+      "fatura": "2026-08",
+      "vencimento": "2026-08-10"
+    },
+    {
+      "id": 147,
+      "data": "2026-07-11",
+      "origemTipo": "cartao",
+      "origemId": "inter_card",
+      "categoriaId": "moradia_supermercado",
+      "descricao": "Supermercado Cometa",
+      "valor": -10.85,
+      "fatura": "2026-08",
+      "vencimento": "2026-08-10"
+    },
+    {
+      "id": 148,
+      "data": "2026-07-11",
+      "origemTipo": "cartao",
+      "origemId": "inter_card",
+      "categoriaId": "moradia_supermercado",
+      "descricao": "Pão de Açúcar",
+      "valor": -4.65,
+      "fatura": "2026-08",
+      "vencimento": "2026-08-10"
+    },
+    {
+      "id": 149,
+      "data": "2026-07-12",
+      "origemTipo": "cartao",
+      "origemId": "inter_card",
+      "categoriaId": "moradia_supermercado",
+      "descricao": "Mercadinho São Luiz",
+      "valor": -3.79,
+      "fatura": "2026-08",
+      "vencimento": "2026-08-10"
+    },
+    {
+      "id": 150,
+      "data": "2026-07-12",
+      "origemTipo": "cartao",
+      "origemId": "inter_card",
+      "categoriaId": "moradia_supermercado",
+      "descricao": "Pão de Açúcar",
+      "valor": -21.93,
+      "fatura": "2026-08",
+      "vencimento": "2026-08-10"
+    },
+    {
+      "id": 151,
+      "data": "2026-07-13",
+      "origemTipo": "cartao",
+      "origemId": "inter_card",
+      "categoriaId": "moradia_supermercado",
+      "descricao": "Mercadinho São Luiz",
+      "valor": -31.98,
+      "fatura": "2026-08",
+      "vencimento": "2026-08-10"
+    },
+    {
+      "id": 152,
+      "data": "2026-07-19",
+      "origemTipo": "cartao",
+      "origemId": "inter_card",
+      "categoriaId": "pessoais_viagens",
+      "descricao": "Google Globoplay",
+      "valor": -39.9,
+      "fatura": "2026-08",
+      "vencimento": "2026-08-10"
+    },
+    {
+      "id": 153,
+      "data": "2026-07-20",
+      "origemTipo": "cartao",
+      "origemId": "nubank",
+      "categoriaId": "outros_saude",
+      "descricao": "Clínica Wantan Laerci (parcela 2/2)",
+      "valor": -175,
+      "fatura": "2026-08",
+      "vencimento": null
+    },
+    {
+      "id": 154,
+      "data": "2026-07-20",
+      "origemTipo": "cartao",
+      "origemId": "nubank",
+      "categoriaId": "custom_roupas_e_cal_ados_mszxehbq",
+      "descricao": "Nova Iguatemi (parcela 2/3)",
+      "valor": -109.99,
+      "fatura": "2026-08",
+      "vencimento": null
+    },
+    {
+      "id": 155,
+      "data": "2026-07-20",
+      "origemTipo": "cartao",
+      "origemId": "nubank",
+      "categoriaId": "outros_compras",
+      "descricao": "Shopee*Tangerinamca",
+      "valor": -104.1,
+      "fatura": "2026-08",
+      "vencimento": null
+    },
+    {
+      "id": 156,
+      "data": "2026-07-20",
+      "origemTipo": "cartao",
+      "origemId": "nubank",
+      "categoriaId": "outros_compras",
+      "descricao": "Shopee*Ghenifer Sobrin",
+      "valor": -59.41,
+      "fatura": "2026-08",
+      "vencimento": null
+    },
+    {
+      "id": 157,
+      "data": "2026-07-20",
+      "origemTipo": "cartao",
+      "origemId": "nubank",
+      "categoriaId": "pessoais_ia",
+      "descricao": "Anthropic* Claude Sub",
+      "valor": -114.48,
+      "fatura": "2026-08",
+      "vencimento": null
+    },
+    {
+      "id": 158,
+      "data": "2026-07-20",
+      "origemTipo": "cartao",
+      "origemId": "nubank",
+      "categoriaId": "pessoais_ia",
+      "descricao": "IOF Anthropic Claude Sub",
+      "valor": -4.01,
+      "fatura": "2026-08",
+      "vencimento": null
+    },
+    {
+      "id": 159,
+      "data": "2026-07-23",
+      "origemTipo": "cartao",
+      "origemId": "nubank",
+      "categoriaId": "moradia_supermercado",
+      "descricao": "Mercadinho São Luiz",
+      "valor": -68.27,
+      "fatura": "2026-08",
+      "vencimento": null
+    },
+    {
+      "id": 160,
+      "data": "2026-07-25",
+      "origemTipo": "cartao",
+      "origemId": "nubank",
+      "categoriaId": "pessoais_restaurantes",
+      "descricao": "iFood - NuPay",
+      "valor": -60.61,
+      "fatura": "2026-08",
+      "vencimento": null
+    },
+    {
+      "id": 161,
+      "data": "2026-07-26",
+      "origemTipo": "cartao",
+      "origemId": "nubank",
+      "categoriaId": "pessoais_restaurantes",
+      "descricao": "iFood - NuPay",
+      "valor": -71.68,
+      "fatura": "2026-08",
+      "vencimento": null
+    },
+    {
+      "id": 162,
+      "data": "2026-07-26",
+      "origemTipo": "cartao",
+      "origemId": "nubank",
+      "categoriaId": "moradia_supermercado",
+      "descricao": "Rma Comércio de Frios",
+      "valor": -53.9,
+      "fatura": "2026-08",
+      "vencimento": null
+    },
+    {
+      "id": 164,
+      "data": "2026-07-28",
+      "origemTipo": "cartao",
+      "origemId": "nubank",
+      "categoriaId": "moradia_credpago",
+      "descricao": "Loft*Fiança Aluguel (parcela)",
+      "valor": -220.48,
+      "fatura": "2026-08",
+      "vencimento": null
+    },
+    {
+      "id": 165,
+      "data": "2026-07-31",
+      "origemTipo": "cartao",
+      "origemId": "nubank",
+      "categoriaId": "pessoais_restaurantes",
+      "descricao": "iFood - NuPay",
+      "valor": -70.81,
+      "fatura": "2026-08",
+      "vencimento": null
+    },
+    {
+      "id": 166,
+      "data": "2026-08-02",
+      "origemTipo": "cartao",
+      "origemId": "nubank",
+      "categoriaId": "pessoais_restaurantes",
+      "descricao": "Kina do Feijão Verde",
+      "valor": -124.74,
+      "fatura": "2026-08",
+      "vencimento": null
+    },
+    {
+      "id": 167,
+      "data": "2026-08-03",
+      "origemTipo": "cartao",
+      "origemId": "nubank",
+      "categoriaId": "pessoais_restaurantes",
+      "descricao": "Barraca Nossa Praia",
+      "valor": -45.6,
+      "fatura": "2026-08",
+      "vencimento": null
+    },
+    {
+      "id": 168,
+      "data": "2026-08-06",
+      "origemTipo": "cartao",
+      "origemId": "nubank",
+      "categoriaId": "outros_compras",
+      "descricao": "Magazine Luiza",
+      "valor": -159.8,
+      "fatura": "2026-08",
+      "vencimento": null
+    },
+    {
+      "id": 169,
+      "data": "2026-08-09",
+      "origemTipo": "cartao",
+      "origemId": "nubank",
+      "categoriaId": "outros_compras",
+      "descricao": "Fixpay2*Grand Maison (parcela 1/3)",
+      "valor": -116.64,
+      "fatura": "2026-08",
+      "vencimento": null
+    },
+    {
+      "id": 170,
+      "data": "2026-08-16",
+      "origemTipo": "cartao",
+      "origemId": "nubank",
+      "categoriaId": "pessoais_restaurantes",
+      "descricao": "Paine Croissanterie",
+      "valor": -140.8,
+      "fatura": "2026-08",
+      "vencimento": null
+    },
+    {
+      "id": 171,
+      "data": "2026-08-31",
+      "origemTipo": "conta",
+      "origemId": "itau_pf",
+      "categoriaId": "custom_transfer_ncias_mszy4jo9",
+      "descricao": "magazine Luiza - ferro Essential",
+      "valor": 159.8,
+      "fatura": null,
+      "vencimento": null
+    },
+    {
+      "id": 172,
+      "data": "2026-08-19",
+      "origemTipo": "conta",
+      "origemId": "esa_pj",
+      "categoriaId": "custom_transfer_ncias_mszy4jo9",
+      "descricao": "Receita Heavy Protein (NF HP)",
+      "valor": 15000,
+      "fatura": null,
+      "vencimento": null
+    }
+  ],
+  "orcamento": [
+    {
+      "id": 1,
+      "categoriaId": "receita_dnx",
+      "diaVencimento": 1,
+      "frequencia": "mensal",
+      "valores": {},
+      "observacao": "Não orçado originalmente; recorrência real identificada em ago/26 (R$3.055,00) — avaliar se deve virar receita mensal fixa"
+    },
+    {
+      "id": 2,
+      "categoriaId": "receita_essential",
+      "diaVencimento": 1,
+      "frequencia": "mensal",
+      "valores": {
+        "2026-08": 12500,
+        "2026-09": 12500,
+        "2026-10": 12500,
+        "2026-11": 12500,
+        "2026-12": 12500
+      },
+      "observacao": ""
+    },
+    {
+      "id": 3,
+      "categoriaId": "receita_hp",
+      "diaVencimento": 10,
+      "frequencia": "mensal",
+      "valores": {
+        "2026-08": 1574.6,
+        "2026-09": 1574.6,
+        "2026-10": 1574.6,
+        "2026-11": 1574.6,
+        "2026-12": 1574.6
+      },
+      "observacao": "Valor líquido (NF bruta 16.574,60 menos repasse de 15.000,00)"
+    },
+    {
+      "id": 4,
+      "categoriaId": "esa_contador",
+      "diaVencimento": 5,
+      "frequencia": "mensal",
+      "valores": {
+        "2026-08": 400,
+        "2026-09": 400,
+        "2026-10": 400,
+        "2026-11": 400,
+        "2026-12": 400
+      },
+      "observacao": ""
+    },
+    {
+      "id": 5,
+      "categoriaId": "esa_coworking",
+      "diaVencimento": 5,
+      "frequencia": "mensal",
+      "valores": {
+        "2026-08": 80,
+        "2026-09": 80,
+        "2026-10": 80,
+        "2026-11": 80,
+        "2026-12": 80
+      },
+      "observacao": ""
+    },
+    {
+      "id": 6,
+      "categoriaId": "esa_imposto_simples",
+      "diaVencimento": 20,
+      "frequencia": "mensal",
+      "valores": {
+        "2026-08": 1933.9
+      },
+      "observacao": "Em agosto paga o valor de mar/26 (atrasado)"
+    },
+    {
+      "id": 7,
+      "categoriaId": "esa_imposto_simples_hp",
+      "diaVencimento": 20,
+      "frequencia": "mensal",
+      "valores": {
+        "2026-08": 994.48,
+        "2026-09": 994.48,
+        "2026-10": 994.48,
+        "2026-11": 994.48,
+        "2026-12": 994.48
+      },
+      "observacao": ""
+    },
+    {
+      "id": 8,
+      "categoriaId": "esa_imposto_atrasado",
+      "diaVencimento": 20,
+      "frequencia": "mensal",
+      "valores": {
+        "2026-08": 310.65,
+        "2026-09": 310.65,
+        "2026-10": 310.65,
+        "2026-11": 310.65,
+        "2026-12": 310.65
+      },
+      "observacao": "Parcelado 19x, 1ª parcela 06/04/26"
+    },
+    {
+      "id": 9,
+      "categoriaId": "esa_inss",
+      "diaVencimento": 20,
+      "frequencia": "mensal",
+      "valores": {
+        "2026-08": 178.31,
+        "2026-09": 178.31,
+        "2026-10": 178.31,
+        "2026-11": 178.31,
+        "2026-12": 178.31
+      },
+      "observacao": "Em julho pago valor de abr/26 (defasagem de meses)"
+    },
+    {
+      "id": 10,
+      "categoriaId": "esa_plano_saude",
+      "diaVencimento": 15,
+      "frequencia": "mensal",
+      "valores": {
+        "2026-08": 572.04,
+        "2026-09": 572.04,
+        "2026-10": 572.04,
+        "2026-11": 572.04,
+        "2026-12": 572.04
+      },
+      "observacao": ""
+    },
+    {
+      "id": 11,
+      "categoriaId": "moradia_aluguel",
+      "diaVencimento": 10,
+      "frequencia": "mensal",
+      "valores": {
+        "2026-08": 1607.96,
+        "2026-09": 1607.96,
+        "2026-10": 1607.96,
+        "2026-11": 1607.96,
+        "2026-12": 1607.96
+      },
+      "observacao": ""
+    },
+    {
+      "id": 12,
+      "categoriaId": "moradia_condominio",
+      "diaVencimento": 10,
+      "frequencia": "mensal",
+      "valores": {
+        "2026-08": 504,
+        "2026-09": 504,
+        "2026-10": 504,
+        "2026-11": 504,
+        "2026-12": 504
+      },
+      "observacao": ""
+    },
+    {
+      "id": 13,
+      "categoriaId": "moradia_credpago",
+      "diaVencimento": 10,
+      "frequencia": "mensal",
+      "valores": {
+        "2026-08": 0,
+        "2026-09": 0,
+        "2026-10": 0,
+        "2026-11": 0,
+        "2026-12": 0
+      },
+      "observacao": ""
+    },
+    {
+      "id": 14,
+      "categoriaId": "moradia_iptu",
+      "diaVencimento": 10,
+      "frequencia": "mensal",
+      "valores": {
+        "2026-08": 84.96,
+        "2026-09": 84.96,
+        "2026-10": 84.96,
+        "2026-11": 84.96,
+        "2026-12": 84.96
+      },
+      "observacao": ""
+    },
+    {
+      "id": 15,
+      "categoriaId": "moradia_juros",
+      "diaVencimento": 10,
+      "frequencia": "mensal",
+      "valores": {},
+      "observacao": ""
+    },
+    {
+      "id": 16,
+      "categoriaId": "moradia_seguro_incendio",
+      "diaVencimento": 10,
+      "frequencia": "mensal",
+      "valores": {},
+      "observacao": ""
+    },
+    {
+      "id": 17,
+      "categoriaId": "moradia_taxa_boleto",
+      "diaVencimento": 10,
+      "frequencia": "mensal",
+      "valores": {
+        "2026-08": 9.3,
+        "2026-09": 9.3,
+        "2026-10": 9.3,
+        "2026-11": 9.3,
+        "2026-12": 9.3
+      },
+      "observacao": ""
+    },
+    {
+      "id": 18,
+      "categoriaId": "moradia_energia",
+      "diaVencimento": 20,
+      "frequencia": "mensal",
+      "valores": {
+        "2026-08": 250,
+        "2026-09": 250,
+        "2026-10": 250,
+        "2026-11": 250,
+        "2026-12": 250
+      },
+      "observacao": ""
+    },
+    {
+      "id": 19,
+      "categoriaId": "moradia_internet",
+      "diaVencimento": 23,
+      "frequencia": "mensal",
+      "valores": {
+        "2026-08": 95,
+        "2026-09": 95,
+        "2026-10": 95,
+        "2026-11": 95,
+        "2026-12": 95
+      },
+      "observacao": ""
+    },
+    {
+      "id": 20,
+      "categoriaId": "moradia_netflix",
+      "diaVencimento": 5,
+      "frequencia": "mensal",
+      "valores": {
+        "2026-08": 59.9,
+        "2026-09": 59.9,
+        "2026-10": 59.9,
+        "2026-11": 59.9,
+        "2026-12": 59.9
+      },
+      "observacao": ""
+    },
+    {
+      "id": 21,
+      "categoriaId": "moradia_banho_mile",
+      "diaVencimento": [
+        5,
+        15
+      ],
+      "frequencia": "multi",
+      "valores": {
+        "2026-08": 200,
+        "2026-09": 200,
+        "2026-10": 200,
+        "2026-11": 200,
+        "2026-12": 200
+      },
+      "observacao": "Duas mensalidades por mês (dias 5 e 15), R$100 cada"
+    },
+    {
+      "id": 22,
+      "categoriaId": "moradia_pao",
+      "diaVencimento": null,
+      "frequencia": "semanal",
+      "valores": {
+        "2026-08": 160,
+        "2026-09": 160,
+        "2026-10": 160,
+        "2026-11": 160,
+        "2026-12": 160
+      },
+      "observacao": ""
+    },
+    {
+      "id": 23,
+      "categoriaId": "moradia_supermercado",
+      "diaVencimento": null,
+      "frequencia": "semanal",
+      "valores": {
+        "2026-08": 1600,
+        "2026-09": 1600,
+        "2026-10": 1600,
+        "2026-11": 1600,
+        "2026-12": 1600
+      },
+      "observacao": ""
+    },
+    {
+      "id": 24,
+      "categoriaId": "emprestimo_mae",
+      "diaVencimento": 5,
+      "frequencia": "mensal",
+      "valores": {
+        "2026-08": 352.365,
+        "2026-09": 352.365,
+        "2026-10": 352.365,
+        "2026-11": 352.365,
+        "2026-12": 352.365
+      },
+      "observacao": "Termina em 08/08/31"
+    },
+    {
+      "id": 25,
+      "categoriaId": "isaac_judo",
+      "diaVencimento": 10,
+      "frequencia": "mensal",
+      "valores": {
+        "2026-08": 100,
+        "2026-09": 100,
+        "2026-10": 100,
+        "2026-11": 100,
+        "2026-12": 100
+      },
+      "observacao": ""
+    },
+    {
+      "id": 26,
+      "categoriaId": "isaac_livro",
+      "diaVencimento": 10,
+      "frequencia": "mensal",
+      "valores": {
+        "2026-08": 324.9,
+        "2026-09": 324.9,
+        "2026-10": 324.9,
+        "2026-11": 324.9,
+        "2026-12": 324.9
+      },
+      "observacao": "Cartão Inter — parcela mensal"
+    },
+    {
+      "id": 27,
+      "categoriaId": "isaac_recarga_tim",
+      "diaVencimento": 10,
+      "frequencia": "mensal",
+      "valores": {
+        "2026-08": 20,
+        "2026-09": 20,
+        "2026-10": 20,
+        "2026-11": 20,
+        "2026-12": 20
+      },
+      "observacao": ""
+    },
+    {
+      "id": 28,
+      "categoriaId": "isaac_corte_cabelo",
+      "diaVencimento": 10,
+      "frequencia": "mensal",
+      "valores": {
+        "2026-08": 40,
+        "2026-09": 40,
+        "2026-10": 40,
+        "2026-11": 40,
+        "2026-12": 40
+      },
+      "observacao": ""
+    },
+    {
+      "id": 29,
+      "categoriaId": "mae_tim",
+      "diaVencimento": 20,
+      "frequencia": "mensal",
+      "valores": {
+        "2026-08": 55,
+        "2026-09": 55,
+        "2026-10": 55,
+        "2026-11": 55,
+        "2026-12": 55
+      },
+      "observacao": ""
+    },
+    {
+      "id": 30,
+      "categoriaId": "parcelamento_itau",
+      "diaVencimento": 5,
+      "frequencia": "mensal",
+      "valores": {
+        "2026-08": 340.82,
+        "2026-09": 340.82,
+        "2026-10": 340.82,
+        "2026-11": 340.82,
+        "2026-12": 340.82
+      },
+      "observacao": "12 parcelas, última em 05/05/27"
+    },
+    {
+      "id": 31,
+      "categoriaId": "parcelamento_movida",
+      "diaVencimento": 10,
+      "frequencia": "mensal",
+      "valores": {
+        "2026-08": 96.8,
+        "2026-09": 96.8,
+        "2026-10": 96.8,
+        "2026-11": 96.8,
+        "2026-12": 96.8
+      },
+      "observacao": "10 parcelas, última em 10/03/27"
+    },
+    {
+      "id": 32,
+      "categoriaId": "parcelamento_bradesco",
+      "diaVencimento": 5,
+      "frequencia": "mensal",
+      "valores": {
+        "2026-08": 420,
+        "2026-09": 420,
+        "2026-10": 420,
+        "2026-11": 420,
+        "2026-12": 420
+      },
+      "observacao": ""
+    },
+    {
+      "id": 33,
+      "categoriaId": "pessoais_academia",
+      "diaVencimento": 5,
+      "frequencia": "mensal",
+      "valores": {
+        "2026-08": 119.9,
+        "2026-09": 119.9,
+        "2026-10": 119.9,
+        "2026-11": 119.9,
+        "2026-12": 119.9
+      },
+      "observacao": ""
+    },
+    {
+      "id": 34,
+      "categoriaId": "pessoais_corte_cabelo",
+      "diaVencimento": 5,
+      "frequencia": "mensal",
+      "valores": {
+        "2026-08": 130,
+        "2026-09": 130,
+        "2026-10": 130,
+        "2026-11": 130,
+        "2026-12": 130
+      },
+      "observacao": ""
+    },
+    {
+      "id": 35,
+      "categoriaId": "pessoais_tim",
+      "diaVencimento": 20,
+      "frequencia": "mensal",
+      "valores": {
+        "2026-08": 55,
+        "2026-09": 55,
+        "2026-10": 55,
+        "2026-11": 55,
+        "2026-12": 55
+      },
+      "observacao": ""
+    },
+    {
+      "id": 36,
+      "categoriaId": "pessoais_direcao",
+      "diaVencimento": 20,
+      "frequencia": "mensal",
+      "valores": {
+        "2026-08": 99.9,
+        "2026-09": 99.9,
+        "2026-10": 99.9,
+        "2026-11": 99.9,
+        "2026-12": 99.9
+      },
+      "observacao": ""
+    },
+    {
+      "id": 37,
+      "categoriaId": "pessoais_google_drive",
+      "diaVencimento": 25,
+      "frequencia": "mensal",
+      "valores": {
+        "2026-08": 4.5,
+        "2026-09": 4.5,
+        "2026-10": 4.5,
+        "2026-11": 4.5,
+        "2026-12": 4.5
+      },
+      "observacao": "Cartão Itaú final 0705"
+    },
+    {
+      "id": 38,
+      "categoriaId": "pessoais_restaurantes",
+      "diaVencimento": null,
+      "frequencia": "semanal",
+      "valores": {
+        "2026-08": 500,
+        "2026-09": 500,
+        "2026-10": 500,
+        "2026-11": 500,
+        "2026-12": 500
+      },
+      "observacao": ""
+    },
+    {
+      "id": 39,
+      "categoriaId": "pessoais_ia",
+      "diaVencimento": 16,
+      "frequencia": "mensal",
+      "valores": {
+        "2026-08": 123.07,
+        "2026-09": 123.07,
+        "2026-10": 123.07,
+        "2026-11": 123.07,
+        "2026-12": 123.07
+      },
+      "observacao": "Cartão Nubank — dia estimado, fatura não informa vencimento"
+    },
+    {
+      "id": 40,
+      "categoriaId": "pessoais_viagem_passagens",
+      "diaVencimento": 25,
+      "frequencia": "mensal",
+      "valores": {
+        "2026-08": 405.13,
+        "2026-09": 405.13,
+        "2026-10": 405.13,
+        "2026-11": 405.13
+      },
+      "observacao": "Cartão — dia estimado"
+    },
+    {
+      "id": 41,
+      "categoriaId": "pessoais_viagem_hotel",
+      "diaVencimento": 25,
+      "frequencia": "mensal",
+      "valores": {
+        "2026-08": 309.67,
+        "2026-09": 309.67
+      },
+      "observacao": "Cartão — dia estimado (929/3)"
+    },
+    {
+      "id": 42,
+      "categoriaId": "transporte_uber",
+      "diaVencimento": null,
+      "frequencia": "diario",
+      "valores": {
+        "2026-08": 680,
+        "2026-09": 680,
+        "2026-10": 680,
+        "2026-11": 680,
+        "2026-12": 680
+      },
+      "observacao": ""
+    }
+  ],
+  "dataBase": "2026-08-19"
+}</script>
+<script>
+// ===================== Estado =====================
+const SEED = JSON.parse(document.getElementById('seed-data').textContent);
+const LS_KEY = 'orcamento_pessoal_state_v1';
+let state;
+(function initState(){
+  let saved = null;
+  try{ saved = JSON.parse(localStorage.getItem(LS_KEY)); }catch(e){ saved = null; }
+  state = saved || structuredClone(SEED);
+})();
+ensureDefaults();
+let currentTab = 'dashboard';
+let editingId = null;
+
+// Garante contas/categorias do sistema mesmo em dados antigos importados (ex: carteira em dinheiro,
+// categoria de transferência entre contas e de ajuste de saldo).
+function ensureDefaults(){
+  if(!state.accounts.find(a=>a.id==='carteira')){
+    state.accounts.push({id:'carteira', name:'Carteira (dinheiro)', banco:'Dinheiro em espécie', saldoAtual:0, dataExtrato: state.dataBase || '2026-08-19'});
+  }
+  if(!state.categories.find(c=>c.id==='sys_transferencia')){
+    state.categories.push({id:'sys_transferencia', nome:'Transferência entre contas', grupo:'Transferências internas', tipo:'transferencia'});
+  }
+  if(!state.categories.find(c=>c.id==='sys_ajuste_saldo')){
+    state.categories.push({id:'sys_ajuste_saldo', nome:'Ajuste de saldo', grupo:'Ajustes', tipo:'transferencia'});
+  }
+}
+
+const fmt = (v) => (v<0?'-':'') + 'R$ ' + Math.abs(v).toLocaleString('pt-BR',{minimumFractionDigits:2, maximumFractionDigits:2});
+const fmtDate = (d) => { const [y,m,day]=d.split('-'); return `${day}/${m}/${y}`; };
+const catById = (id) => state.categories.find(c=>c.id===id);
+const accById = (id) => state.accounts.find(a=>a.id===id);
+const cardById = (id) => state.cards.find(c=>c.id===id);
+const uid = () => Math.max(0,...state.lancamentos.map(l=>l.id)) + 1;
+
+const SLOTS = ['--s1','--s2','--s3','--s4','--s5','--s6','--s7','--s8'];
+function cssVar(name){ return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+function slotColor(i){ return cssVar(SLOTS[i % SLOTS.length]); }
+
+// ===================== Orçamento — helpers =====================
+const MESES_ORC = ['2026-08','2026-09','2026-10','2026-11','2026-12'];
+function dataBase(){ return state.dataBase || '2026-08-19'; }
+function orcById(id){ return state.orcamento.find(o=>o.id===id); }
+function diaLabel(line){
+  if(Array.isArray(line.diaVencimento)) return line.diaVencimento.join('/');
+  if(line.diaVencimento===null) return line.frequencia==='semanal' ? 'semanal' : 'diário';
+  return String(line.diaVencimento);
+}
+function daysInMonth(month){ const [y,m]=month.split('-').map(Number); return new Date(y,m,0).getDate(); }
+function todayInfo(){ const [y,m,d] = dataBase().split('-').map(Number); return {y,m,d,month:`${y}-${String(m).padStart(2,'0')}`}; }
+
+// soma de lançamentos (contas+cartões) ligados à categoria da linha, no mês informado
+function realizadoForLine(line, month){
+  return state.lancamentos
+    .filter(l=>l.categoriaId===line.categoriaId)
+    .filter(l=> l.origemTipo==='cartao' ? l.fatura===month : l.data.slice(0,7)===month)
+    .reduce((s,l)=>s+l.valor,0);
+}
+// ocorrências (dia, valor) previstas de uma linha orçamentária dentro de um mês
+function occurrencesForLine(line, month){
+  const orcado = line.valores[month];
+  if(orcado===undefined || orcado===null) return [];
+  const dim = daysInMonth(month);
+  if(line.frequencia==='multi'){
+    const dias = line.diaVencimento;
+    return dias.map(d=>({dia:d, valor:orcado/dias.length}));
+  }
+  if(line.frequencia==='semanal'){
+    const dias=[5,12,19,26].filter(d=>d<=dim);
+    return dias.map(d=>({dia:d, valor:orcado/dias.length}));
+  }
+  if(line.frequencia==='diario'){
+    return Array.from({length:dim},(_,i)=>({dia:i+1, valor:orcado/dim}));
+  }
+  return [{dia:line.diaVencimento, valor:orcado}];
+}
+// status de uma linha em um mês, relativo à data-base ("hoje")
+function statusForLine(line, month){
+  const cat = catById(line.categoriaId);
+  const orcado = line.valores[month];
+  const real = realizadoForLine(line, month);
+  const {month: curMonth, d: hojeDia} = todayInfo();
+  if(orcado===undefined && real===0) return {label:'—', pill:'plan', ok:true};
+  if(Math.abs(real) > 0.005){
+    if(orcado===undefined) return {label: cat.tipo==='receita'?'Recebido (não orçado)':'Pago (não orçado)', pill:'good'};
+    const diff = Math.abs(real) - Math.abs(orcado);
+    if(Math.abs(diff) < 0.01) return {label:'Pago - confere', pill:'good'};
+    return {label: diff>0 ? 'Pago (acima do orçado)' : 'Pago (abaixo do orçado)', pill: diff>0?'over':'good'};
+  }
+  // sem realizado
+  if(month < curMonth) return {label:'Sem dados no período carregado', pill:'plan'};
+  if(month > curMonth) return {label:'Planejado', pill:'plan'};
+  // mês corrente: comparar dia(s) de vencimento com hoje
+  const occ = occurrencesForLine(line, month);
+  if(occ.length===0) return {label:'—', pill:'plan'};
+  if(line.frequencia==='semanal' || line.frequencia==='diario'){
+    return {label:'Em andamento (parcial)', pill:'plan'};
+  }
+  const maxDia = Math.max(...occ.map(o=>o.dia));
+  const minDiaFuturo = occ.map(o=>o.dia).filter(d=>d>=hojeDia).sort((a,b)=>a-b)[0];
+  if(minDiaFuturo!==undefined) return {label:`A vencer (dia ${minDiaFuturo})`, pill:'warn'};
+  return {label:`⚠ Atrasado (venceu dia ${maxDia})`, pill:'late'};
+}
+
+// ===================== Tooltip =====================
+const tooltipEl = document.getElementById('tooltip');
+function showTip(evt, html){
+  tooltipEl.innerHTML = html;
+  tooltipEl.classList.add('show');
+  moveTip(evt);
+}
+function moveTip(evt){
+  tooltipEl.style.left = (evt.clientX + 14) + 'px';
+  tooltipEl.style.top = (evt.clientY + 14) + 'px';
+}
+function hideTip(){ tooltipEl.classList.remove('show'); }
+
+// ===================== Senha de acesso =====================
+// Trava simples do lado do cliente — não é criptografia de verdade (quem olhar o
+// código-fonte da página consegue contornar). A senha real fica só como um hash aqui
+// embaixo; pra trocar, gere um novo hash com simpleHash('sua-senha-nova') e substitua
+// o valor de APP_PIN_HASH.
+function simpleHash(str){
+  let h = 5381;
+  for(let i=0;i<str.length;i++){ h = ((h*33) ^ str.charCodeAt(i)) >>> 0; }
+  return h.toString(16);
+}
+const APP_PIN_HASH = '7c537b05'; // senha temporária: 0000 — troque assim que possível
+function unlockUi(){
+  document.getElementById('lockScreen').style.display = 'none';
+  document.getElementById('appRoot').style.display = 'flex';
+}
+function lockApp(){
+  sessionStorage.removeItem('orc_unlocked');
+  document.getElementById('appRoot').style.display = 'none';
+  document.getElementById('lockScreen').style.display = 'flex';
+  const inp = document.getElementById('lockInput');
+  inp.value = '';
+  inp.focus();
+}
+if(sessionStorage.getItem('orc_unlocked')==='1'){ unlockUi(); }
+document.getElementById('formLock').addEventListener('submit', (e)=>{
+  e.preventDefault();
+  const inp = document.getElementById('lockInput');
+  const err = document.getElementById('lockErr');
+  if(simpleHash(inp.value)===APP_PIN_HASH){
+    sessionStorage.setItem('orc_unlocked','1');
+    err.textContent = '';
+    unlockUi();
+  } else {
+    err.textContent = 'Senha incorreta.';
+    inp.value = '';
+    inp.focus();
+  }
+});
+document.getElementById('btnLock').addEventListener('click', lockApp);
+
+// ===================== Google Drive sync =====================
+// Sincronização simples (mesmo modelo do painel de gestão): guarda um arquivo JSON no
+// Google Drive do próprio usuário (escopo drive.file — só acessa arquivos criados por
+// este app). Na primeira vez que este navegador conecta, TRAZ o que já estiver no Drive;
+// depois disso, cada alteração local é enviada (push) automaticamente. Não faz merge:
+// se você editar em dois aparelhos sem sincronizar entre as edições, o último a enviar
+// vence — mesma limitação já aceita no painel de gestão.
+const DRIVE_CFG = {
+  clientId: '311182031830-gmhceor6h0ikf8v3d3pqpmbiobvescbf.apps.googleusercontent.com',
+  scope: 'https://www.googleapis.com/auth/drive.file',
+  fileName: 'orcamento-dados.json',
+};
+let driveState = {
+  gapiReady:false, gisReady:false, tokenClient:null, token:null,
+  fileId: localStorage.getItem('orc_drive_fileid') || null,
+  syncing:false, lastSync:null, connected: localStorage.getItem('orc_drive_connected')==='1',
+};
+
+function loadScriptOnce(src){
+  return new Promise((resolve,reject)=>{
+    if(document.querySelector(`script[src="${src}"]`)){ resolve(); return; }
+    const s = document.createElement('script');
+    s.src = src; s.onload = ()=>resolve(); s.onerror = ()=>reject(new Error('Falha ao carregar '+src));
+    document.head.appendChild(s);
+  });
+}
+
+function updateSyncUi(){
+  const statusEl = document.getElementById('syncStatus');
+  const btn = document.getElementById('btnConnectDrive');
+  if(!statusEl || !btn) return;
+  if(driveState.syncing){
+    statusEl.textContent = '🔄 Sincronizando...';
+    statusEl.className = 'syncstatus';
+  } else if(driveState.token){
+    btn.textContent = '✅ Google Drive conectado';
+    const when = driveState.lastSync ? driveState.lastSync.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}) : '—';
+    statusEl.textContent = `Última sincronização: ${when}`;
+    statusEl.className = 'syncstatus ok';
+  } else {
+    btn.textContent = '🔗 Conectar Google Drive';
+    statusEl.textContent = driveState.connected ? 'Toque para reconectar' : 'Dados ficam só neste aparelho até conectar';
+    statusEl.className = 'syncstatus';
+  }
+}
+
+async function initDrive(){
+  try{
+    await Promise.all([
+      loadScriptOnce('https://apis.google.com/js/api.js'),
+      loadScriptOnce('https://accounts.google.com/gsi/client'),
+    ]);
+    await new Promise(res => gapi.load('client', res));
+    await gapi.client.init({});
+    await gapi.client.load('https://www.googleapis.com/discovery/v1/apis/drive/v3/rest');
+    driveState.gapiReady = true;
+    driveState.tokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: DRIVE_CFG.clientId,
+      scope: DRIVE_CFG.scope,
+      callback: async (resp) => {
+        if(resp.error){ console.warn('Drive auth erro', resp); updateSyncUi(); return; }
+        driveState.token = resp.access_token;
+        gapi.client.setToken({access_token: resp.access_token});
+        localStorage.setItem('orc_drive_connected','1');
+        driveState.connected = true;
+        await driveSyncPull();
+      },
+    });
+    driveState.gisReady = true;
+    if(driveState.connected){
+      try{ driveState.tokenClient.requestAccessToken({prompt:''}); }catch(e){ /* precisa reconectar manualmente */ }
+    }
+  }catch(err){
+    console.warn('Google Drive indisponível nesta sessão', err);
+  }
+  updateSyncUi();
+}
+
+function connectDrive(){
+  if(!driveState.tokenClient){ alert('O Google Drive ainda está carregando — espere alguns segundos e tente de novo.'); return; }
+  driveState.tokenClient.requestAccessToken({prompt:'consent'});
+}
+
+async function driveFindFile(){
+  const res = await gapi.client.drive.files.list({
+    q: `name='${DRIVE_CFG.fileName}' and trashed=false`,
+    fields: 'files(id, modifiedTime)', spaces:'drive',
+  });
+  return (res.result.files && res.result.files[0]) || null;
+}
+
+async function driveSyncPull(){
+  driveState.syncing = true; updateSyncUi();
+  try{
+    let fileId = driveState.fileId;
+    if(!fileId){
+      const f = await driveFindFile();
+      if(f){ fileId = f.id; driveState.fileId = f.id; localStorage.setItem('orc_drive_fileid', f.id); }
+    }
+    if(!fileId){
+      await driveSyncPush(); // primeira vez de todas: ainda não existe arquivo no Drive
+    } else if(!localStorage.getItem('orc_synced_once')){
+      const res = await gapi.client.drive.files.get({fileId, alt:'media'});
+      const remote = typeof res.result === 'object' && res.result !== null ? res.result : JSON.parse(res.body);
+      if(remote && remote.accounts && remote.lancamentos){
+        state = remote;
+        ensureDefaults();
+        localStorage.setItem('orc_synced_once','1');
+        render();
+      }
+    }
+    driveState.lastSync = new Date();
+  }catch(err){
+    console.warn('Falha ao sincronizar com o Drive', err);
+  }
+  driveState.syncing = false;
+  updateSyncUi();
+}
+
+async function driveSyncPush(){
+  if(!driveState.token) return;
+  driveState.syncing = true; updateSyncUi();
+  try{
+    const content = JSON.stringify(state);
+    if(driveState.fileId){
+      await fetch(`https://www.googleapis.com/upload/drive/v3/files/${driveState.fileId}?uploadType=media`, {
+        method:'PATCH',
+        headers:{ 'Authorization':'Bearer '+driveState.token, 'Content-Type':'application/json' },
+        body: content,
+      });
+    } else {
+      const boundary = 'orcbnd' + Date.now();
+      const metadata = { name: DRIVE_CFG.fileName, mimeType:'application/json' };
+      const body =
+        `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}\r\n`+
+        `--${boundary}\r\nContent-Type: application/json\r\n\r\n${content}\r\n--${boundary}--`;
+      const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+        method:'POST',
+        headers:{ 'Authorization':'Bearer '+driveState.token, 'Content-Type':`multipart/related; boundary=${boundary}` },
+        body,
+      });
+      const json = await res.json();
+      if(json.id){ driveState.fileId = json.id; localStorage.setItem('orc_drive_fileid', json.id); }
+    }
+    localStorage.setItem('orc_synced_once','1');
+    driveState.lastSync = new Date();
+  }catch(err){
+    console.warn('Falha ao enviar para o Drive', err);
+  }
+  driveState.syncing = false;
+  updateSyncUi();
+}
+document.getElementById('btnConnectDrive').addEventListener('click', connectDrive);
+initDrive();
+
+// ===================== Navegação =====================
+document.querySelectorAll('.navbtn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.navbtn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    currentTab = btn.dataset.tab;
+    render();
+  });
+});
+document.getElementById('btnTheme').addEventListener('click', ()=>{
+  const html = document.documentElement;
+  html.setAttribute('data-theme', html.getAttribute('data-theme')==='dark' ? 'light':'dark');
+});
+document.getElementById('btnExport').addEventListener('click', ()=>{
+  const blob = new Blob([JSON.stringify(state, null, 2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `orcamento-dados-${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+});
+document.getElementById('btnImport').addEventListener('click', ()=> document.getElementById('fileImport').click());
+document.getElementById('fileImport').addEventListener('change', (e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try{
+      const parsed = JSON.parse(reader.result);
+      if(!parsed.lancamentos || !parsed.accounts) throw new Error('formato inválido');
+      state = parsed;
+      ensureDefaults();
+      render();
+      alert('Dados importados com sucesso.');
+    }catch(err){ alert('Não consegui ler esse arquivo: ' + err.message); }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+});
+
+function updateSidebarSummary(){
+  const total = state.accounts.reduce((s,a)=>s+a.saldoAtual,0);
+  document.getElementById('acctSummary').textContent = `Saldo em contas: ${fmt(total)}`;
+}
+
+// ===================== Persistência local + Google Drive =====================
+let lastPersistedJSON = null;
+let drivePushTimer = null;
+function persistState(){
+  const json = JSON.stringify(state);
+  try{ localStorage.setItem(LS_KEY, json); }catch(e){ console.warn('Não consegui salvar localmente', e); }
+  if(json === lastPersistedJSON) return;
+  lastPersistedJSON = json;
+  if(drivePushTimer) clearTimeout(drivePushTimer);
+  drivePushTimer = setTimeout(()=>{ if(typeof driveSyncPush==='function' && driveState.token) driveSyncPush(); }, 1500);
+}
+
+// ===================== Render dispatcher =====================
+function render(){
+  persistState();
+  updateSidebarSummary();
+  const main = document.getElementById('main');
+  if(currentTab==='dashboard') main.innerHTML = viewDashboard();
+  else if(currentTab==='lancamentos'){ main.innerHTML = viewLancamentos(); wireLancamentos(); }
+  else if(currentTab==='orcado'){ main.innerHTML = viewOrcado(); wireOrcado(); }
+  else if(currentTab==='aberto'){ main.innerHTML = viewAberto(); }
+  else if(currentTab==='fluxo'){ main.innerHTML = viewFluxo(); wireFluxo(); }
+  else if(currentTab==='faturas'){ main.innerHTML = viewFaturas(); render_faturaFor(state.cards[0].id); }
+  else if(currentTab==='extratos'){ main.innerHTML = viewExtratos(); render_extratoFor(state.accounts[0].id); }
+  wireCommon();
+}
+
+function wireCommon(){
+  document.querySelectorAll('[data-account-select]').forEach(sel=>{
+    sel.addEventListener('change', ()=>render_extratoFor(sel.value));
+  });
+  document.querySelectorAll('[data-card-select]').forEach(sel=>{
+    sel.addEventListener('change', ()=>render_faturaFor(sel.value));
+  });
+}
+
+// ===================== Dashboard =====================
+function monthLancs(month){ return state.lancamentos.filter(l=>l.data.slice(0,7)===month || (l.fatura===month)); }
+function availableMonths(){
+  const s = new Set();
+  state.lancamentos.forEach(l=>{ s.add(l.origemTipo==='cartao' ? l.fatura : l.data.slice(0,7)); });
+  return [...s].sort();
+}
+
+function viewDashboard(){
+  const months = availableMonths();
+  const month = months[months.length-1] || '2026-08';
+  const contaTx = state.lancamentos.filter(l=>l.origemTipo==='conta' && l.data.slice(0,7)===month);
+  const receitas = contaTx.filter(l=>l.valor>0 && catById(l.categoriaId).tipo==='receita');
+  const despesasConta = contaTx.filter(l=>l.valor<0 && catById(l.categoriaId).tipo!=='transferencia');
+  const cartaoTx = state.lancamentos.filter(l=>l.origemTipo==='cartao' && l.fatura===month);
+  const despesasCartao = cartaoTx.filter(l=>l.valor<0 && catById(l.categoriaId).tipo!=='transferencia');
+  const creditosCartao = cartaoTx.filter(l=>l.valor>0);
+
+  const totalReceita = receitas.reduce((s,l)=>s+l.valor,0);
+  const totalDespesa = despesasConta.reduce((s,l)=>s+Math.abs(l.valor),0) + despesasCartao.reduce((s,l)=>s+Math.abs(l.valor),0) - creditosCartao.reduce((s,l)=>s+l.valor,0);
+  const saldoMes = totalReceita - totalDespesa;
+  const saldoContas = state.accounts.reduce((s,a)=>s+a.saldoAtual,0);
+
+  // gastos por grupo (conta + cartão, despesas)
+  const allDespesas = [...despesasConta, ...despesasCartao];
+  const byGrupo = {};
+  allDespesas.forEach(l=>{
+    const g = catById(l.categoriaId).grupo;
+    byGrupo[g] = (byGrupo[g]||0) + Math.abs(l.valor);
+  });
+  let grupoArr = Object.entries(byGrupo).sort((a,b)=>b[1]-a[1]);
+  if(grupoArr.length>7){
+    const top = grupoArr.slice(0,7);
+    const outros = grupoArr.slice(7).reduce((s,[,v])=>s+v,0);
+    grupoArr = [...top, ['Outros grupos', outros]];
+  }
+  const maxGrupo = Math.max(...grupoArr.map(g=>g[1]), 1);
+
+  // gastos por categoria (mais granular que grupo) — para o gráfico de rosca
+  const byCategoria = {};
+  allDespesas.forEach(l=>{
+    const nome = catById(l.categoriaId).nome;
+    byCategoria[nome] = (byCategoria[nome]||0) + Math.abs(l.valor);
+  });
+  let catArr = Object.entries(byCategoria).sort((a,b)=>b[1]-a[1]);
+  if(catArr.length>7){
+    const top = catArr.slice(0,7);
+    const outras = catArr.slice(7).reduce((s,[,v])=>s+v,0);
+    catArr = [...top, ['Outras categorias', outras]];
+  }
+  const totalCategorias = catArr.reduce((s,[,v])=>s+v,0);
+
+  // top gastos individuais
+  const topGastos = [...allDespesas].sort((a,b)=>Math.abs(b.valor)-Math.abs(a.valor)).slice(0,8);
+
+  // fluxo diário (contas) — receitas x despesas por dia
+  const byDay = {};
+  contaTx.forEach(l=>{
+    byDay[l.data] = byDay[l.data] || {r:0,d:0};
+    if(l.valor>0) byDay[l.data].r += l.valor; else byDay[l.data].d += Math.abs(l.valor);
+  });
+  const days = Object.keys(byDay).sort();
+  const maxDay = Math.max(...days.map(d=>Math.max(byDay[d].r, byDay[d].d)), 1);
+
+  return `
+    <div class="topbar">
+      <div><h1>Dashboard</h1><div class="sub">Mês de referência: ${monthLabel(month)} · dados até ${SEED.accounts[0].dataExtrato ? fmtDate(SEED.accounts[0].dataExtrato) : ''}</div></div>
+    </div>
+    <div class="readme-box"><b>Como ler:</b> este painel usa os lançamentos de contas (extratos) e cartões (faturas) do mês selecionado. Itens sem correspondência no orçamento original ficam no grupo <b>"Outros (não orçado)"</b>.</div>
+    <div class="tiles">
+      <div class="tile"><div class="label">Receitas do mês</div><div class="value pos">${fmt(totalReceita)}</div></div>
+      <div class="tile"><div class="label">Despesas do mês</div><div class="value neg">${fmt(totalDespesa)}</div></div>
+      <div class="tile"><div class="label">Saldo do mês</div><div class="value ${saldoMes>=0?'pos':'neg'}">${fmt(saldoMes)}</div></div>
+      <div class="tile"><div class="label">Saldo total em contas (hoje)</div><div class="value">${fmt(saldoContas)}</div></div>
+    </div>
+    <div class="card">
+      <h2>Despesas por categoria <small>contas + cartões, ${monthLabel(month)}</small></h2>
+      ${categoriaDonutChart(catArr, totalCategorias)}
+    </div>
+    <div class="grid2">
+      <div class="card">
+        <h2>Despesas por grupo <small>contas + cartões, ${monthLabel(month)}</small></h2>
+        ${grupoArr.map(([g,v],i)=>`
+          <div class="barrow" data-tip="${g}: ${fmt(v)}">
+            <div class="lbl">${g}</div>
+            <div class="track"><div class="fill" style="width:${(v/maxGrupo*100).toFixed(1)}%; background:${slotColor(0)}"></div></div>
+            <div class="num">${fmt(v)}</div>
+          </div>`).join('')}
+      </div>
+      <div class="card">
+        <h2>Maiores gastos individuais <small>${monthLabel(month)}</small></h2>
+        <table><tbody>
+        ${topGastos.map(l=>`<tr><td>${fmtDate(l.data)}</td><td>${l.descricao}</td><td style="text-align:right">${fmt(Math.abs(l.valor))}</td></tr>`).join('') || '<tr><td class="empty">Sem dados</td></tr>'}
+        </tbody></table>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Fluxo diário nas contas <small>receitas x despesas, ${monthLabel(month)}</small></h2>
+      ${dailyFlowChart(days, byDay, maxDay)}
+      <div class="legend">
+        <span><span class="sw" style="background:${cssVar('--s1')}"></span>Receitas</span>
+        <span><span class="sw" style="background:${cssVar('--s8')}"></span>Despesas</span>
+      </div>
+    </div>
+    <div class="footprint">Painel gerado a partir dos extratos/faturas fornecidos · valores parciais para meses em andamento</div>
+  `;
+}
+
+function monthLabel(m){
+  const meses = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+  const [y,mm] = m.split('-');
+  return `${meses[parseInt(mm)-1]}/${y.slice(2)}`;
+}
+
+function dailyFlowChart(days, byDay, maxVal){
+  if(days.length===0) return '<div class="empty">Sem lançamentos de conta nesse mês</div>';
+  const w = 900, h = 160, barW = Math.min(22, (w/days.length)-6), gap=6;
+  const zero = h/2;
+  const scale = (h/2 - 8) / maxVal;
+  let bars = '';
+  days.forEach((d,i)=>{
+    const x = i*(barW*2+gap);
+    const r = byDay[d].r, de = byDay[d].d;
+    const rH = r*scale, dH = de*scale;
+    bars += `<rect data-tip="${fmtDate(d)} · Receitas: ${fmt(r)}" x="${x}" y="${zero-rH}" width="${barW}" height="${Math.max(rH,1)}" rx="3" fill="${cssVar('--s1')}" class="bar"></rect>`;
+    bars += `<rect data-tip="${fmtDate(d)} · Despesas: ${fmt(de)}" x="${x+barW+2}" y="${zero}" width="${barW}" height="${Math.max(dH,1)}" rx="3" fill="${cssVar('--s8')}" class="bar"></rect>`;
+  });
+  const totalW = days.length*(barW*2+gap);
+  return `<div style="overflow-x:auto"><svg width="${Math.max(totalW,300)}" height="${h}" viewBox="0 0 ${Math.max(totalW,300)} ${h}" style="min-width:100%">
+    <line x1="0" y1="${zero}" x2="${totalW}" y2="${zero}" stroke="${cssVar('--baseline')}" stroke-width="1"/>
+    ${bars}
+  </svg></div>`;
+}
+
+function categoriaDonutChart(entries, total){
+  if(!entries.length || total<=0) return '<div class="empty">Sem despesas nesse mês</div>';
+  const r = 62, cx = 80, cy = 80, C = 2*Math.PI*r;
+  let acc = 0;
+  const segs = entries.map(([label,v],i)=>{
+    const frac = v/total;
+    const dash = Math.max(frac*C - 1.5, 0); // pequeno gap entre fatias
+    const seg = `<circle data-tip="${label}: ${fmt(v)} (${(frac*100).toFixed(1)}%)" cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${slotColor(i)}" stroke-width="26" stroke-dasharray="${dash.toFixed(2)} ${(C-dash).toFixed(2)}" stroke-dashoffset="${(-acc).toFixed(2)}" class="donutseg"></circle>`;
+    acc += frac*C;
+    return seg;
+  }).join('');
+  const legend = entries.map(([label,v],i)=>`
+    <div style="display:flex; align-items:center; gap:8px; margin-bottom:7px; font-size:13px;">
+      <span style="width:10px; height:10px; border-radius:50%; background:${slotColor(i)}; flex-shrink:0;"></span>
+      <span style="flex:1; color:var(--text-secondary);">${label}</span>
+      <span style="font-weight:600;">${fmt(v)}</span>
+    </div>`).join('');
+  return `
+    <div style="display:flex; gap:28px; flex-wrap:wrap; align-items:center;">
+      <svg width="160" height="160" viewBox="0 0 160 160" style="flex-shrink:0;">
+        <g transform="rotate(-90 ${cx} ${cy})">${segs}</g>
+        <text x="${cx}" y="${cy-4}" text-anchor="middle" style="font-size:11px; fill:var(--text-muted);">Total</text>
+        <text x="${cx}" y="${cy+12}" text-anchor="middle" style="font-size:12px; font-weight:700; fill:var(--text-primary);">${fmt(total)}</text>
+      </svg>
+      <div style="flex:1; min-width:220px;">${legend}</div>
+    </div>`;
+}
+
+// ===================== Lançamentos =====================
+function viewLancamentos(){
+  const cats = state.categories;
+  const catsGerenciaveis = cats.filter(c=>!c.id.startsWith('sys_'));
+  return `
+    <div class="topbar">
+      <div><h1>Lançamentos</h1><div class="sub">Todos os lançamentos de contas e cartões — adicione, edite ou remova aqui</div></div>
+    </div>
+    <div class="card">
+      <h2>📷 Lançar por foto do cupom fiscal <small>leitura automática — beta</small></h2>
+      <div class="ocrbox" id="ocrBox">
+        <input type="file" id="ocrFile" accept="image/*" capture="environment" style="display:none">
+        <button class="btn secondary" id="btnOcr" type="button">📷 Tirar foto ou escolher cupom</button>
+        <div class="ocrstatus" id="ocrStatus">Tira uma foto do cupom (ou escolhe uma da galeria) que eu tento achar o valor e a data pra preencher o formulário abaixo.</div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Novo lançamento</h2>
+      <form id="formNovo">
+        <div class="formrow">
+          <div><label>Data</label><input type="date" name="data" required value="${dataBase()}"></div>
+          <div><label>Origem</label>
+            <select name="origemTipo" id="selOrigemTipo">
+              <option value="conta">Conta</option>
+              <option value="cartao">Cartão</option>
+            </select>
+          </div>
+          <div><label>Conta/Cartão</label><select name="origemId" id="selOrigemId"></select></div>
+          <div><label>Descrição</label><input type="text" name="descricao" placeholder="Ex: Supermercado" required></div>
+          <div><label>Categoria</label>
+            <select name="categoriaId">${cats.map(c=>`<option value="${c.id}">${c.grupo} — ${c.nome}</option>`).join('')}</select>
+          </div>
+          <div><label>Valor (use - p/ despesa)</label><input type="number" step="0.01" name="valor" placeholder="-50.00" required></div>
+          <div><button class="btn" type="submit">Adicionar</button></div>
+        </div>
+      </form>
+    </div>
+    <div class="card">
+      <h2>🔁 Transferência entre contas <small>ex: banco → carteira</small></h2>
+      <div class="sub" style="margin:-6px 0 12px;">Move dinheiro entre suas próprias contas — não entra como receita nem despesa nos relatórios.</div>
+      <form id="formTransfer">
+        <div class="formrow">
+          <div><label>Data</label><input type="date" name="data" required value="${dataBase()}"></div>
+          <div><label>De</label><select name="deId">${state.accounts.map(a=>`<option value="${a.id}">${a.name}</option>`).join('')}</select></div>
+          <div><label>Para</label><select name="paraId">${state.accounts.map(a=>`<option value="${a.id}">${a.name}</option>`).join('')}</select></div>
+          <div><label>Valor</label><input type="number" step="0.01" min="0.01" name="valor" placeholder="100.00" required></div>
+          <div><label>Descrição (opcional)</label><input type="text" name="descricao" placeholder="Ex: Saque no caixa eletrônico"></div>
+          <div><button class="btn" type="submit">🔁 Transferir</button></div>
+        </div>
+      </form>
+    </div>
+    <div class="card">
+      <details>
+        <summary style="cursor:pointer; font-size:13px; color:var(--s1); font-weight:600;">⚙️ Gerenciar categorias (renomear, mudar grupo, criar novas)</summary>
+        <div class="catmgr" id="catMgr">
+          <div class="catmgr-row" style="font-size:11px; color:var(--text-muted); font-weight:600;"><div>Nome</div><div>Grupo</div><div>Tipo</div><div></div></div>
+          ${catsGerenciaveis.map(c=>`
+            <div class="catmgr-row">
+              <input type="text" data-cat-nome="${c.id}" value="${c.nome}">
+              <input type="text" data-cat-grupo="${c.id}" value="${c.grupo}">
+              <select data-cat-tipo="${c.id}">
+                <option value="despesa" ${c.tipo==='despesa'?'selected':''}>Despesa</option>
+                <option value="receita" ${c.tipo==='receita'?'selected':''}>Receita</option>
+              </select>
+              <button class="btn danger" style="padding:4px 8px; font-size:11px" data-cat-del="${c.id}">Excluir</button>
+            </div>`).join('')}
+          <div class="catmgr-row" style="margin-top:10px; border-top:1px solid var(--border); padding-top:10px;">
+            <input type="text" id="novaCatNome" placeholder="Nova categoria...">
+            <input type="text" id="novaCatGrupo" placeholder="Grupo...">
+            <select id="novaCatTipo"><option value="despesa">Despesa</option><option value="receita">Receita</option></select>
+            <button class="btn secondary" id="btnAddCat">+ Adicionar</button>
+          </div>
+        </div>
+      </details>
+    </div>
+    <div class="card">
+      <div class="filters">
+        <select id="fltOrigemTipo"><option value="">Todos (conta+cartão)</option><option value="conta">Contas</option><option value="cartao">Cartões</option></select>
+        <select id="fltOrigemId"><option value="">Todas as origens</option>${[...state.accounts.map(a=>`<option value="${a.id}">${a.name}</option>`),...state.cards.map(c=>`<option value="${c.id}">${c.name}</option>`)].join('')}</select>
+        <select id="fltCategoria"><option value="">Todas categorias</option>${cats.map(c=>`<option value="${c.id}">${c.grupo} — ${c.nome}</option>`).join('')}</select>
+        <input type="text" id="fltTexto" placeholder="Buscar descrição...">
+        <button class="btn secondary" id="btnLimparFiltro">Limpar filtros</button>
+      </div>
+      <div id="tabelaLancamentos"></div>
+    </div>
+  `;
+}
+
+function refreshOrigemOptions(){
+  const tipo = document.getElementById('selOrigemTipo').value;
+  const sel = document.getElementById('selOrigemId');
+  const list = tipo==='conta' ? state.accounts : state.cards;
+  sel.innerHTML = list.map(x=>`<option value="${x.id}">${x.name}</option>`).join('');
+}
+
+// Cria duas pontas ligadas (saída + entrada) para mover dinheiro entre contas próprias
+// (ex: banco -> carteira). Não conta como receita/despesa (categoria tipo "transferencia").
+function transferir({data, deId, paraId, valor, descricao}){
+  const v = Math.round(Math.abs(parseFloat(valor))*100)/100;
+  const contaDe = accById(deId), contaPara = accById(paraId);
+  if(!v || !contaDe || !contaPara || deId===paraId) return false;
+  const grupoTransferId = 'tr_' + Date.now() + '_' + Math.floor(Math.random()*10000);
+  const idSaida = uid();
+  state.lancamentos.push({
+    id: idSaida, data, origemTipo:'conta', origemId: deId, categoriaId:'sys_transferencia',
+    descricao: descricao ? `Transferência para ${contaPara.name} — ${descricao}` : `Transferência para ${contaPara.name}`,
+    valor: -v, fatura:null, vencimento:null, grupoTransferId,
+  });
+  contaDe.saldoAtual = Math.round((contaDe.saldoAtual - v)*100)/100;
+  const idEntrada = uid();
+  state.lancamentos.push({
+    id: idEntrada, data, origemTipo:'conta', origemId: paraId, categoriaId:'sys_transferencia',
+    descricao: descricao ? `Transferência de ${contaDe.name} — ${descricao}` : `Transferência de ${contaDe.name}`,
+    valor: v, fatura:null, vencimento:null, grupoTransferId,
+  });
+  contaPara.saldoAtual = Math.round((contaPara.saldoAtual + v)*100)/100;
+  return true;
+}
+
+// Lê o texto de um cupom fiscal (já extraído por OCR) e tenta achar valor total, data e
+// uma descrição razoável. Heurística simples — sempre deixa o usuário conferir antes de salvar.
+function parseCupomText(text){
+  const lines = text.split('\n').map(l=>l.trim()).filter(Boolean);
+  const semAcento = s => s.normalize('NFD').replace(/[̀-ͯ]/g,'').toUpperCase();
+  const moneyRe = /(\d{1,3}(?:\.\d{3})*,\d{2}|\d+,\d{2})/g;
+  const toNumber = str => parseFloat(str.replace(/\./g,'').replace(',','.'));
+
+  let valor = null;
+  const totalLine = lines.find(l=>{
+    const n = semAcento(l);
+    return n.includes('TOTAL') && !n.includes('SUBTOTAL') && !n.includes('SUB TOTAL');
+  });
+  if(totalLine){
+    const matches = totalLine.match(moneyRe);
+    if(matches) valor = toNumber(matches[matches.length-1]);
+  }
+  if(valor===null){
+    const allMatches = text.match(moneyRe);
+    if(allMatches && allMatches.length) valor = Math.max(...allMatches.map(toNumber));
+  }
+
+  let data = null;
+  const dm = text.match(/\b(\d{2})[\/.\-](\d{2})[\/.\-](\d{2,4})\b/);
+  if(dm){
+    let [, dd, mm, yy] = dm;
+    if(yy.length===2) yy = '20'+yy;
+    data = `${yy}-${mm}-${dd}`;
+  }
+
+  const descricao = lines.find(l=>/[A-Za-zÀ-ÿ]{3,}/.test(l) && l.length<=40) || 'Cupom fiscal';
+  return {valor, data, descricao};
+}
+
+function wireLancamentos(){
+  refreshOrigemOptions();
+  document.getElementById('selOrigemTipo').addEventListener('change', refreshOrigemOptions);
+  document.getElementById('btnOcr').addEventListener('click', ()=> document.getElementById('ocrFile').click());
+  document.getElementById('ocrFile').addEventListener('change', async (e)=>{
+    const file = e.target.files[0];
+    if(!file) return;
+    const box = document.getElementById('ocrBox');
+    const status = document.getElementById('ocrStatus');
+    box.classList.add('busy');
+    status.textContent = '🔎 Carregando leitor de texto...';
+    try{
+      await loadScriptOnce('https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.1.1/tesseract.min.js');
+      status.textContent = '🔎 Lendo o cupom... isso pode levar alguns segundos.';
+      const { data: { text } } = await Tesseract.recognize(file, 'por');
+      const parsed = parseCupomText(text);
+      const form = document.getElementById('formNovo');
+      if(parsed.data) form.querySelector('[name=data]').value = parsed.data;
+      if(parsed.valor!==null) form.querySelector('[name=valor]').value = (-Math.abs(parsed.valor)).toFixed(2);
+      form.querySelector('[name=descricao]').value = parsed.descricao;
+      form.scrollIntoView({behavior:'smooth', block:'center'});
+      form.querySelector('[name=valor]').focus();
+      status.textContent = parsed.valor!==null
+        ? '✅ Confira os campos no formulário "Novo lançamento" abaixo (valor, data, categoria e conta) e clique em Adicionar.'
+        : '⚠️ Não consegui achar o valor no cupom — preencha manualmente no formulário abaixo.';
+    }catch(err){
+      console.warn('OCR falhou', err);
+      status.textContent = '⚠️ Não consegui ler essa foto (tente uma mais nítida). Preencha manualmente no formulário abaixo.';
+    }
+    box.classList.remove('busy');
+    e.target.value = '';
+  });
+  document.getElementById('formNovo').addEventListener('submit', (e)=>{
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const origemTipo = fd.get('origemTipo');
+    const item = {
+      id: uid(),
+      data: fd.get('data'),
+      origemTipo,
+      origemId: fd.get('origemId'),
+      categoriaId: fd.get('categoriaId'),
+      descricao: fd.get('descricao'),
+      valor: parseFloat(fd.get('valor')),
+      fatura: origemTipo==='cartao' ? fd.get('data').slice(0,7) : null,
+      vencimento: null,
+    };
+    if(origemTipo==='conta'){
+      const acc = accById(item.origemId);
+      if(acc) acc.saldoAtual = Math.round((acc.saldoAtual + item.valor)*100)/100;
+    }
+    state.lancamentos.push(item);
+    render();
+  });
+  document.getElementById('formTransfer').addEventListener('submit', (e)=>{
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const deId = fd.get('deId'), paraId = fd.get('paraId');
+    const valor = parseFloat(fd.get('valor'));
+    if(deId===paraId){ alert('Escolha contas diferentes em "De" e "Para".'); return; }
+    if(!valor || valor<=0){ alert('Informe um valor de transferência maior que zero.'); return; }
+    transferir({data: fd.get('data'), deId, paraId, valor, descricao: fd.get('descricao')});
+    e.target.reset();
+    render();
+  });
+  ['fltOrigemTipo','fltOrigemId','fltCategoria','fltTexto'].forEach(id=>{
+    document.getElementById(id).addEventListener('input', renderTabelaLancamentos);
+  });
+  document.getElementById('btnLimparFiltro').addEventListener('click', ()=>{
+    document.getElementById('fltOrigemTipo').value='';
+    document.getElementById('fltOrigemId').value='';
+    document.getElementById('fltCategoria').value='';
+    document.getElementById('fltTexto').value='';
+    renderTabelaLancamentos();
+  });
+  wireCatMgr();
+  renderTabelaLancamentos();
+}
+
+function wireCatMgr(){
+  document.querySelectorAll('[data-cat-nome]').forEach(inp=>{
+    inp.addEventListener('change', ()=>{
+      const c = catById(inp.dataset.catNome);
+      if(c){ c.nome = inp.value; render(); }
+    });
+  });
+  document.querySelectorAll('[data-cat-grupo]').forEach(inp=>{
+    inp.addEventListener('change', ()=>{
+      const c = catById(inp.dataset.catGrupo);
+      if(c){ c.grupo = inp.value; render(); }
+    });
+  });
+  document.querySelectorAll('[data-cat-tipo]').forEach(sel=>{
+    sel.addEventListener('change', ()=>{
+      const c = catById(sel.dataset.catTipo);
+      if(c){ c.tipo = sel.value; render(); }
+    });
+  });
+  document.querySelectorAll('[data-cat-del]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const id = btn.dataset.catDel;
+      const emUso = state.lancamentos.some(l=>l.categoriaId===id) || state.orcamento.some(o=>o.categoriaId===id);
+      if(emUso){ alert('Essa categoria está em uso em lançamentos ou no orçamento — reatribua-os antes de excluir.'); return; }
+      state.categories = state.categories.filter(c=>c.id!==id);
+      render();
+    });
+  });
+  document.getElementById('btnAddCat').addEventListener('click', ()=>{
+    const nome = document.getElementById('novaCatNome').value.trim();
+    const grupo = document.getElementById('novaCatGrupo').value.trim() || 'Outros (não orçado)';
+    const tipo = document.getElementById('novaCatTipo').value;
+    if(!nome){ alert('Digite um nome para a categoria.'); return; }
+    const id = 'custom_' + nome.toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'') + '_' + Date.now().toString(36);
+    state.categories.push({id, nome, grupo, tipo});
+    render();
+  });
+}
+function origemId_fix(v){ return v; }
+
+function renderTabelaLancamentos(){
+  const ot = document.getElementById('fltOrigemTipo').value;
+  const oi = document.getElementById('fltOrigemId').value;
+  const cat = document.getElementById('fltCategoria').value;
+  const txt = document.getElementById('fltTexto').value.toLowerCase();
+  let rows = [...state.lancamentos].sort((a,b)=>b.data.localeCompare(a.data));
+  if(ot) rows = rows.filter(l=>l.origemTipo===ot);
+  if(oi) rows = rows.filter(l=>l.origemId===oi);
+  if(cat) rows = rows.filter(l=>l.categoriaId===cat);
+  if(txt) rows = rows.filter(l=>l.descricao.toLowerCase().includes(txt));
+  const el = document.getElementById('tabelaLancamentos');
+  el.innerHTML = `
+    <table>
+      <thead><tr><th>Data</th><th>Origem</th><th>Categoria</th><th>Descrição</th><th style="text-align:right">Valor</th><th></th></tr></thead>
+      <tbody>
+      ${rows.map(l=>{
+        const origemName = l.origemTipo==='conta' ? (accById(l.origemId)||{}).name : (cardById(l.origemId)||{}).name;
+        return `<tr>
+          <td>${fmtDate(l.data)}</td>
+          <td><span class="tag">${l.origemTipo==='conta'?'🏦':'💳'} ${origemName||'—'}</span></td>
+          <td><select class="inlinesel" data-editcat="${l.id}">${state.categories.map(c=>`<option value="${c.id}" ${c.id===l.categoriaId?'selected':''}>${c.grupo} — ${c.nome}</option>`).join('')}</select></td>
+          <td>${l.descricao}</td>
+          <td style="text-align:right" class="${l.valor>=0?'val-pos':'val-neg'}">${fmt(l.valor)}</td>
+          <td><button class="btn danger" style="padding:4px 9px; font-size:11.5px" data-del="${l.id}">Excluir</button></td>
+        </tr>`;
+      }).join('') || '<tr><td colspan="6" class="empty">Nenhum lançamento encontrado</td></tr>'}
+      </tbody>
+    </table>
+    <div class="sub" style="margin-top:10px">${rows.length} lançamento(s) · a categoria de cada linha pode ser alterada direto na tabela</div>
+  `;
+  el.querySelectorAll('[data-editcat]').forEach(sel=>{
+    sel.addEventListener('change', ()=>{
+      const l = state.lancamentos.find(x=>x.id===parseInt(sel.dataset.editcat));
+      if(l){ l.categoriaId = sel.value; }
+    });
+  });
+  el.querySelectorAll('[data-del]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const id = parseInt(btn.dataset.del);
+      const idx = state.lancamentos.findIndex(l=>l.id===id);
+      if(idx<0) return;
+      const l = state.lancamentos[idx];
+      if(l.grupoTransferId){
+        if(!confirm('Esse lançamento faz parte de uma transferência entre contas. Excluir remove as duas pontas (saída e entrada). Continuar?')) return;
+        state.lancamentos.filter(x=>x.grupoTransferId===l.grupoTransferId).forEach(x=>{
+          if(x.origemTipo==='conta'){
+            const acc = accById(x.origemId);
+            if(acc) acc.saldoAtual = Math.round((acc.saldoAtual - x.valor)*100)/100;
+          }
+        });
+        state.lancamentos = state.lancamentos.filter(x=>x.grupoTransferId!==l.grupoTransferId);
+        render();
+        return;
+      }
+      if(l.origemTipo==='conta'){
+        const acc = accById(l.origemId);
+        if(acc) acc.saldoAtual = Math.round((acc.saldoAtual - l.valor)*100)/100;
+      }
+      state.lancamentos.splice(idx,1);
+      render();
+    });
+  });
+}
+
+// ===================== Orçado x Realizado =====================
+let orcMonth = null;
+function viewOrcado(){
+  if(!orcMonth) orcMonth = todayInfo().month;
+  const cats = state.categories;
+  const lines = state.orcamento;
+  const rows = lines.map(line=>{
+    const orcado = line.valores[orcMonth];
+    const real = realizadoForLine(line, orcMonth);
+    const status = statusForLine(line, orcMonth);
+    return {line, cat: catById(line.categoriaId), orcado, real, status};
+  }).sort((a,b)=> a.cat.grupo.localeCompare(b.cat.grupo) || a.cat.nome.localeCompare(b.cat.nome));
+
+  const totalOrcReceita = rows.filter(r=>r.cat.tipo==='receita').reduce((s,r)=>s+(r.orcado||0),0);
+  const totalRealReceita = rows.filter(r=>r.cat.tipo==='receita').reduce((s,r)=>s+r.real,0);
+  const totalOrcDespesa = rows.filter(r=>r.cat.tipo==='despesa').reduce((s,r)=>s+(r.orcado||0),0);
+  const totalRealDespesa = rows.filter(r=>r.cat.tipo==='despesa').reduce((s,r)=>s+Math.abs(r.real),0);
+
+  return `
+    <div class="topbar">
+      <div><h1>Orçado x Realizado</h1><div class="sub">Compare o planejado com o que já aconteceu, mês a mês — adicione observações em cada linha</div></div>
+    </div>
+    <div class="monthtabs" id="orcMonthTabs">
+      ${MESES_ORC.map(m=>`<button data-m="${m}" class="${m===orcMonth?'active':''}">${monthLabel(m)}</button>`).join('')}
+    </div>
+    ${MESES_ORC.indexOf(orcMonth)>0 ? `
+    <div style="display:flex; justify-content:flex-end; margin:-6px 0 16px;">
+      <button class="btn secondary" id="btnCopiarMesAnt" title="Preenche as linhas ainda sem valor em ${monthLabel(orcMonth)} usando o valor de ${monthLabel(MESES_ORC[MESES_ORC.indexOf(orcMonth)-1])}">📋 Copiar valores do mês anterior</button>
+    </div>` : ''}
+    <div class="tiles">
+      <div class="tile"><div class="label">Receitas orçadas</div><div class="value">${fmt(totalOrcReceita)}</div></div>
+      <div class="tile"><div class="label">Receitas realizadas</div><div class="value pos">${fmt(totalRealReceita)}</div></div>
+      <div class="tile"><div class="label">Despesas orçadas</div><div class="value">${fmt(totalOrcDespesa)}</div></div>
+      <div class="tile"><div class="label">Despesas realizadas</div><div class="value neg">${fmt(totalRealDespesa)}</div></div>
+    </div>
+    <div class="card">
+      <table>
+        <thead><tr>
+          <th>Grupo</th><th>Categoria</th><th>Dia venc.</th>
+          <th style="text-align:right">Orçado</th><th style="text-align:right">Realizado</th><th style="text-align:right">Diferença</th>
+          <th>Status</th><th style="min-width:220px">Observação</th>
+        </tr></thead>
+        <tbody>
+        ${rows.map(r=>{
+          const dia = diaLabel(r.line);
+          const diff = (r.orcado!==undefined) ? (Math.abs(r.real) - Math.abs(r.orcado)) * (r.cat.tipo==='receita'?1:1) : null;
+          return `<tr>
+            <td>${r.cat.grupo}</td>
+            <td>${r.cat.nome}</td>
+            <td><span class="daybadge">${dia}</span></td>
+            <td style="text-align:right">${r.orcado!==undefined ? fmt(r.orcado) : '—'}</td>
+            <td style="text-align:right">${Math.abs(r.real)>0.005 ? fmt(r.real) : '—'}</td>
+            <td style="text-align:right">${diff!==null && Math.abs(r.real)>0.005 ? fmt(diff) : '—'}</td>
+            <td><span class="pill ${r.status.pill}">${r.status.label}</span></td>
+            <td><textarea class="obsbox" rows="1" data-obs="${r.line.id}">${r.line.observacao||''}</textarea></td>
+          </tr>`;
+        }).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+function wireOrcado(){
+  document.querySelectorAll('#orcMonthTabs button').forEach(b=>{
+    b.addEventListener('click', ()=>{ orcMonth = b.dataset.m; render(); });
+  });
+  document.querySelectorAll('[data-obs]').forEach(ta=>{
+    ta.addEventListener('change', ()=>{
+      const line = orcById(parseInt(ta.dataset.obs));
+      if(line) line.observacao = ta.value;
+    });
+  });
+  const btnCopiar = document.getElementById('btnCopiarMesAnt');
+  if(btnCopiar) btnCopiar.addEventListener('click', copiarMesAnterior);
+}
+
+function copiarMesAnterior(){
+  const idx = MESES_ORC.indexOf(orcMonth);
+  if(idx<=0){ alert('Não há um mês anterior no orçamento para copiar.'); return; }
+  const mesAnterior = MESES_ORC[idx-1];
+  let copiados = 0, semDadoAnterior = 0;
+  state.orcamento.forEach(line=>{
+    if(line.valores[orcMonth]===undefined){
+      if(line.valores[mesAnterior]!==undefined){
+        line.valores[orcMonth] = line.valores[mesAnterior];
+        copiados++;
+      } else {
+        semDadoAnterior++;
+      }
+    }
+  });
+  if(copiados===0){
+    alert(semDadoAnterior>0
+      ? `Nenhuma linha copiada: as linhas sem valor em ${monthLabel(orcMonth)} também não têm valor em ${monthLabel(mesAnterior)}.`
+      : `Todas as linhas de ${monthLabel(orcMonth)} já têm valores definidos — nada para copiar.`);
+    return;
+  }
+  render();
+  alert(`${copiados} linha(s) preenchida(s) em ${monthLabel(orcMonth)} com os valores de ${monthLabel(mesAnterior)}.${semDadoAnterior>0 ? ` (${semDadoAnterior} linha(s) continuam sem valor, pois ${monthLabel(mesAnterior)} também não tinha.)` : ''}`);
+}
+
+// ===================== Em Aberto =====================
+function viewAberto(){
+  const {month: curMonth} = todayInfo();
+  const rows = state.orcamento.map(line=>{
+    const status = statusForLine(line, curMonth);
+    return {line, cat: catById(line.categoriaId), orcado: line.valores[curMonth], status};
+  }).filter(r=> r.status.pill==='late' || r.status.pill==='warn');
+  const atrasados = rows.filter(r=>r.status.pill==='late').sort((a,b)=>(b.orcado||0)-(a.orcado||0));
+  const aVencer = rows.filter(r=>r.status.pill==='warn').sort((a,b)=>(b.orcado||0)-(a.orcado||0));
+  const totalAtrasado = atrasados.reduce((s,r)=>s+(r.orcado||0),0);
+  const totalAVencer = aVencer.reduce((s,r)=>s+(r.orcado||0),0);
+
+  function tableFor(list){
+    if(list.length===0) return '<div class="empty">Nada aqui 🎉</div>';
+    return `<table><thead><tr><th>Grupo</th><th>Categoria</th><th>Dia venc.</th><th style="text-align:right">Valor orçado</th><th>Observação</th></tr></thead><tbody>
+      ${list.map(r=>`<tr>
+        <td>${r.cat.grupo}</td><td>${r.cat.nome}</td>
+        <td><span class="daybadge">${diaLabel(r.line)}</span></td>
+        <td style="text-align:right">${fmt(r.orcado||0)}</td>
+        <td class="sub">${r.line.observacao||''}</td>
+      </tr>`).join('')}
+    </tbody></table>`;
+  }
+
+  return `
+    <div class="topbar">
+      <div><h1>Em Aberto</h1><div class="sub">Itens do orçamento de ${monthLabel(curMonth)} sem lançamento correspondente ainda</div></div>
+    </div>
+    <div class="tiles">
+      <div class="tile"><div class="label">⚠ Atrasado (venceu e não foi localizado)</div><div class="value neg">${fmt(totalAtrasado)}</div></div>
+      <div class="tile"><div class="label">A vencer (ainda dentro do mês)</div><div class="value">${fmt(totalAVencer)}</div></div>
+      <div class="tile"><div class="label">Total em aberto</div><div class="value neg">${fmt(totalAtrasado+totalAVencer)}</div></div>
+    </div>
+    <div class="card">
+      <h2>⚠ Atrasados</h2>
+      ${tableFor(atrasados)}
+    </div>
+    <div class="card">
+      <h2>A vencer</h2>
+      ${tableFor(aVencer)}
+    </div>
+    <div class="footprint">Baseado na data de referência ${fmtDate(dataBase())} — ajustável em versões futuras do app</div>
+  `;
+}
+
+// ===================== Fluxo de Caixa dia a dia =====================
+function computeDailyCashflow(){
+  const contaTx = state.lancamentos.filter(l=>l.origemTipo==='conta');
+  if(contaTx.length===0) return [];
+  const minDate = contaTx.reduce((m,l)=>l.data<m?l.data:m, contaTx[0].data);
+  const start = minDate < '2026-08-01' ? minDate : '2026-08-01';
+  const end = '2026-12-31';
+  const hoje = dataBase();
+
+  // agrupa reais por dia (transferências entre contas próprias não contam como entrada/saída,
+  // pois não alteram o total combinado das contas — só aparecem no extrato de cada conta)
+  const realByDay = {};
+  contaTx.forEach(l=>{
+    if(catById(l.categoriaId).tipo==='transferencia') return;
+    (realByDay[l.data] = realByDay[l.data]||[]).push(l);
+  });
+
+  // agrupa projeções por dia (linhas de orçamento, apenas dias > hoje)
+  const projByDay = {};
+  state.orcamento.forEach(line=>{
+    MESES_ORC.forEach(month=>{
+      occurrencesForLine(line, month).forEach(occ=>{
+        const dstr = `${month}-${String(occ.dia).padStart(2,'0')}`;
+        if(dstr <= hoje) return; // só projeta o futuro
+        const cat = catById(line.categoriaId);
+        const sinal = cat.tipo==='receita' ? 1 : -1;
+        (projByDay[dstr] = projByDay[dstr]||[]).push({descricao: cat.nome, valor: occ.valor*sinal, categoriaId: line.categoriaId});
+      });
+    });
+  });
+
+  const saldoHojeContas = state.accounts.reduce((s,a)=>s+a.saldoAtual,0);
+  const realNetTotal = contaTx.reduce((s,l)=>s+l.valor,0);
+  let saldo = Math.round((saldoHojeContas - realNetTotal)*100)/100; // saldo estimado no início do período carregado
+
+  const out = [];
+  let [cy,cm,cd] = start.split('-').map(Number);
+  const nextDay = () => {
+    const dim = daysInMonth(`${cy}-${String(cm).padStart(2,'0')}`);
+    cd++; if(cd>dim){ cd=1; cm++; if(cm>12){ cm=1; cy++; } }
+  };
+  let guard = 0;
+  while(guard++ < 400){
+    const dstr = `${cy}-${String(cm).padStart(2,'0')}-${String(cd).padStart(2,'0')}`;
+    if(dstr > end) break;
+    const isFuture = dstr > hoje;
+    const items = isFuture ? (projByDay[dstr]||[]).map(x=>({descricao:x.descricao, valor:x.valor})) :
+                              (realByDay[dstr]||[]).map(x=>({descricao:x.descricao, valor:x.valor}));
+    const entradas = items.filter(x=>x.valor>0).reduce((s,x)=>s+x.valor,0);
+    const saidas = items.filter(x=>x.valor<0).reduce((s,x)=>s+Math.abs(x.valor),0);
+    const saldoInicial = saldo;
+    saldo = Math.round((saldo + entradas - saidas)*100)/100;
+    out.push({data:dstr, saldoInicial, entradas, saidas, saldoFinal:saldo, items, isFuture});
+    nextDay();
+  }
+  return out;
+}
+
+let fluxoMonth = null;
+let fluxoView = 'lista';
+function viewFluxo(){
+  if(!fluxoMonth) fluxoMonth = todayInfo().month;
+  const all = computeDailyCashflow();
+  const rows = all.filter(r=>r.data.slice(0,7)===fluxoMonth);
+  if(rows.length===0) return `<div class="topbar"><h1>Fluxo de Caixa</h1></div><div class="card"><div class="empty">Sem dados para este mês ainda.</div></div>`;
+  const saldoInicioMes = rows[0].saldoInicial;
+  const saldoFimMes = rows[rows.length-1].saldoFinal;
+  const totalEntradas = rows.reduce((s,r)=>s+r.entradas,0);
+  const totalSaidas = rows.reduce((s,r)=>s+r.saidas,0);
+  const minSaldo = Math.min(...rows.map(r=>Math.min(r.saldoInicial,r.saldoFinal)));
+  const maxSaldo = Math.max(...rows.map(r=>Math.max(r.saldoInicial,r.saldoFinal)));
+
+  return `
+    <div class="topbar">
+      <div><h1>Fluxo de Caixa</h1><div class="sub">Saldo dia a dia — realizado até ${fmtDate(dataBase())}, projetado (orçamento) depois disso</div></div>
+    </div>
+    <div class="monthtabs" id="fluxoMonthTabs">
+      ${MESES_ORC.map(m=>`<button data-m="${m}" class="${m===fluxoMonth?'active':''}">${monthLabel(m)}</button>`).join('')}
+    </div>
+    <div class="tiles">
+      <div class="tile"><div class="label">Saldo início do mês</div><div class="value">${fmt(saldoInicioMes)}</div></div>
+      <div class="tile"><div class="label">Entradas no mês</div><div class="value pos">${fmt(totalEntradas)}</div></div>
+      <div class="tile"><div class="label">Saídas no mês</div><div class="value neg">${fmt(totalSaidas)}</div></div>
+      <div class="tile"><div class="label">Saldo final do mês</div><div class="value ${saldoFimMes>=0?'pos':'neg'}">${fmt(saldoFimMes)}</div></div>
+    </div>
+    <div class="card">
+      <h2>Saldo ao longo do mês <small>linha = saldo final do dia · azul = realizado, laranja = projetado</small></h2>
+      ${saldoLineChart(rows, minSaldo, maxSaldo)}
+    </div>
+    <div class="card">
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:14px;">
+        <h2 style="margin:0;">Detalhe por dia <small>${fluxoView==='calendario' ? 'por vencimento — receitas e despesas do orçamento, mais o que já foi realizado' : ''}</small></h2>
+        <div class="monthtabs" id="fluxoViewToggle" style="margin-bottom:0;">
+          <button data-view="lista" class="${fluxoView==='lista'?'active':''}">📋 Lista</button>
+          <button data-view="calendario" class="${fluxoView==='calendario'?'active':''}">📅 Calendário</button>
+        </div>
+      </div>
+      ${fluxoView==='calendario' ? calendarioFluxo(rows, fluxoMonth) : `
+      <table>
+        <thead><tr><th>Data</th><th style="text-align:right">Saldo inicial</th><th style="text-align:right">Entradas</th><th style="text-align:right">Saídas</th><th style="text-align:right">Saldo final</th><th>Detalhe</th></tr></thead>
+        <tbody>
+        ${rows.map(r=>`<tr>
+          <td>${fmtDate(r.data)} ${r.isFuture?'<span class="tag">projetado</span>':''}</td>
+          <td style="text-align:right">${fmt(r.saldoInicial)}</td>
+          <td style="text-align:right" class="${r.entradas>0?'val-pos':''}">${r.entradas>0?fmt(r.entradas):'—'}</td>
+          <td style="text-align:right">${r.saidas>0?fmt(-r.saidas):'—'}</td>
+          <td style="text-align:right; font-weight:600">${fmt(r.saldoFinal)}</td>
+          <td class="sub">${r.items.map(x=>x.descricao).join(', ')}</td>
+        </tr>`).join('')}
+        </tbody>
+      </table>
+      `}
+    </div>
+  `;
+}
+function wireFluxo(){
+  document.querySelectorAll('#fluxoMonthTabs button').forEach(b=>{
+    b.addEventListener('click', ()=>{ fluxoMonth = b.dataset.m; render(); });
+  });
+  document.querySelectorAll('#fluxoViewToggle button').forEach(b=>{
+    b.addEventListener('click', ()=>{ fluxoView = b.dataset.view; render(); });
+  });
+}
+// Grade de calendário do mês (domingo a sábado) com receitas/despesas por dia de vencimento —
+// reaproveita os mesmos dados diários (rows) já calculados por computeDailyCashflow().
+function calendarioFluxo(rows, month){
+  const byDate = {};
+  rows.forEach(r=>{ byDate[r.data] = r; });
+  const [y,m] = month.split('-').map(Number);
+  const dim = daysInMonth(month);
+  const firstWeekday = new Date(y, m-1, 1).getDay(); // 0=domingo
+  const totalCells = firstWeekday + dim;
+  const trailing = (7 - (totalCells % 7)) % 7;
+  const weekdays = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+  let cells = '';
+  for(let i=0;i<firstWeekday;i++) cells += `<div class="calday pad"></div>`;
+  for(let d=1; d<=dim; d++){
+    const dstr = `${month}-${String(d).padStart(2,'0')}`;
+    const r = byDate[dstr];
+    const isToday = dstr === dataBase();
+    const entradas = r ? r.entradas : 0;
+    const saidas = r ? r.saidas : 0;
+    const itemsReceita = r ? r.items.filter(x=>x.valor>0) : [];
+    const itemsDespesa = r ? r.items.filter(x=>x.valor<0) : [];
+    const tipReceita = itemsReceita.map(x=>`${x.descricao}: ${fmt(x.valor)}`).join(' · ') || 'Receita';
+    const tipDespesa = itemsDespesa.map(x=>`${x.descricao}: ${fmt(Math.abs(x.valor))}`).join(' · ') || 'Despesa';
+    cells += `<div class="calday ${r&&r.isFuture?'future':''} ${isToday?'today':''}">
+      <div class="calnum">${d}${isToday?' <span class="daybadge">hoje</span>':''}</div>
+      ${entradas>0 ? `<div class="calamt pos" data-tip="${tipReceita}">+${fmt(entradas)}</div>` : ''}
+      ${saidas>0 ? `<div class="calamt neg" data-tip="${tipDespesa}">-${fmt(saidas)}</div>` : ''}
+    </div>`;
+  }
+  for(let i=0;i<trailing;i++) cells += `<div class="calday pad"></div>`;
+  return `<div class="calgrid">
+    ${weekdays.map(w=>`<div class="calweekday">${w}</div>`).join('')}
+    ${cells}
+  </div>`;
+}
+function saldoLineChart(rows, minV, maxV){
+  const w = Math.max(600, rows.length*26), h=160, pad=28;
+  const range = (maxV-minV) || 1;
+  const x = i => pad + i*((w-2*pad)/(rows.length-1||1));
+  const y = v => h-pad - ((v-minV)/range)*(h-2*pad);
+  let path = rows.map((r,i)=>`${i===0?'M':'L'}${x(i).toFixed(1)},${y(r.saldoFinal).toFixed(1)}`).join(' ');
+  const zeroY = y(0);
+  const dots = rows.map((r,i)=>`<circle data-tip="${fmtDate(r.data)} · Saldo: ${fmt(r.saldoFinal)}" cx="${x(i).toFixed(1)}" cy="${y(r.saldoFinal).toFixed(1)}" r="4" fill="${r.isFuture?cssVar('--s2'):cssVar('--s1')}" stroke="${cssVar('--surface-1')}" stroke-width="2"></circle>`).join('');
+  return `<div style="overflow-x:auto"><svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" style="min-width:100%">
+    ${minV<0 && maxV>0 ? `<line x1="${pad}" y1="${zeroY}" x2="${w-pad}" y2="${zeroY}" stroke="${cssVar('--grid')}" stroke-dasharray="3,3"/>` : ''}
+    <path d="${path}" fill="none" stroke="${cssVar('--s1')}" stroke-width="2"/>
+    ${dots}
+  </svg></div>`;
+}
+
+// ===================== Faturas por cartão =====================
+function viewFaturas(){
+  return `
+    <div class="topbar">
+      <div><h1>Faturas por cartão</h1><div class="sub">Histórico de faturas identificadas nos arquivos enviados</div></div>
+      <select data-card-select id="selCard">${state.cards.map(c=>`<option value="${c.id}">${c.name}</option>`).join('')}</select>
+    </div>
+    <div id="faturaBody"></div>
+  `;
+}
+function render_faturaFor(cardId){
+  document.getElementById('faturaBody').innerHTML = faturaBodyHTML(cardId || state.cards[0].id);
+}
+function faturaBodyHTML(cardId){
+  const card = cardById(cardId);
+  const items = state.lancamentos.filter(l=>l.origemTipo==='cartao' && l.origemId===cardId);
+  const byInvoice = {};
+  items.forEach(l=>{ (byInvoice[l.fatura] = byInvoice[l.fatura]||[]).push(l); });
+  const invoices = Object.keys(byInvoice).sort().reverse();
+  if(invoices.length===0) return `<div class="card"><div class="empty">Nenhuma fatura carregada para este cartão ainda.</div></div>`;
+
+  // histórico (barra) de totais por fatura
+  const totals = invoices.map(m=>({m, total: byInvoice[m].reduce((s,l)=>s+Math.abs(Math.min(l.valor,0)),0)}));
+  const maxT = Math.max(...totals.map(t=>t.total),1);
+
+  const histHtml = `
+    <div class="card">
+      <h2>Histórico de faturas <small>${card.name}${card.limite?` · limite R$ ${card.limite.toLocaleString('pt-BR',{minimumFractionDigits:2})}`:''}</small></h2>
+      ${totals.map(t=>`
+        <div class="barrow">
+          <div class="lbl">${monthLabel(t.m)}</div>
+          <div class="track"><div class="fill" style="width:${(t.total/maxT*100).toFixed(1)}%; background:${slotColor(0)}"></div></div>
+          <div class="num">${fmt(t.total)}</div>
+        </div>`).join('')}
+    </div>`;
+
+  const invoiceHtml = invoices.map(m=>{
+    const list = byInvoice[m].slice().sort((a,b)=>a.data.localeCompare(b.data));
+    const total = list.reduce((s,l)=>s+Math.abs(Math.min(l.valor,0)),0);
+    const creditos = list.reduce((s,l)=>s+Math.max(l.valor,0),0);
+    const venc = list.find(l=>l.vencimento)?.vencimento;
+    return `<details class="invoice" ${m===invoices[0]?'open':''}>
+      <summary><span>${monthLabel(m)} ${venc?`· vencimento ${fmtDate(venc)}`:''}</span><span class="tot">${fmt(total-creditos)}</span></summary>
+      <div class="body">
+        <table><thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th><th style="text-align:right">Valor</th></tr></thead>
+        <tbody>
+        ${list.map(l=>`<tr><td>${fmtDate(l.data)}</td><td>${l.descricao}</td><td>${catById(l.categoriaId).nome}</td><td style="text-align:right" class="${l.valor>=0?'val-pos':'val-neg'}">${fmt(l.valor)}</td></tr>`).join('')}
+        </tbody></table>
+      </div>
+    </details>`;
+  }).join('');
+
+  return histHtml + `<div class="card"><h2>Itens por fatura</h2>${invoiceHtml}</div>`;
+}
+
+// ===================== Extratos por conta =====================
+function viewExtratos(){
+  return `
+    <div class="topbar">
+      <div><h1>Extratos por conta</h1><div class="sub">Lançamentos das contas correntes, com saldo estimado ao longo do período</div></div>
+      <select data-account-select id="selAccount">${state.accounts.map(a=>`<option value="${a.id}">${a.name}</option>`).join('')}</select>
+    </div>
+    <div id="extratoBody"></div>
+  `;
+}
+function render_extratoFor(accId){
+  document.getElementById('extratoBody').innerHTML = extratoBodyHTML(accId || state.accounts[0].id);
+}
+function extratoBodyHTML(accId){
+  const acc = accById(accId);
+  const list = state.lancamentos.filter(l=>l.origemTipo==='conta' && l.origemId===accId).slice().sort((a,b)=>a.data.localeCompare(b.data) || a.id-b.id);
+  if(list.length===0) return `<div class="card"><div class="empty">Nenhum lançamento para esta conta ainda.</div></div>`;
+  const net = list.reduce((s,l)=>s+l.valor,0);
+  const saldoInicial = Math.round((acc.saldoAtual - net)*100)/100;
+  let running = saldoInicial;
+  const rows = list.map(l=>{ running = Math.round((running+l.valor)*100)/100; return {...l, saldo:running}; });
+  return `
+    <div class="tiles">
+      <div class="tile"><div class="label">Saldo estimado no início do período</div><div class="value">${fmt(saldoInicial)}</div></div>
+      <div class="tile"><div class="label">Saldo atual (${fmtDate(acc.dataExtrato)})</div><div class="value">${fmt(acc.saldoAtual)}</div></div>
+      <div class="tile"><div class="label">Movimentação líquida no período</div><div class="value ${net>=0?'pos':'neg'}">${fmt(net)}</div></div>
+    </div>
+    <div class="card">
+      <h2>Extrato <small>${acc.name} · ${acc.banco}</small></h2>
+      <table>
+        <thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th><th style="text-align:right">Valor</th><th style="text-align:right">Saldo</th></tr></thead>
+        <tbody>
+        ${rows.map(l=>`<tr>
+          <td>${fmtDate(l.data)}</td>
+          <td>${l.descricao}</td>
+          <td>${catById(l.categoriaId).nome}</td>
+          <td style="text-align:right" class="${l.valor>=0?'val-pos':'val-neg'}">${fmt(l.valor)}</td>
+          <td style="text-align:right">${fmt(l.saldo)}</td>
+        </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+// ===================== Delegated hover tooltips (bars) =====================
+document.addEventListener('mousemove', (e)=>{
+  const t = e.target.closest('[data-tip]');
+  if(t){ showTip(e, t.getAttribute('data-tip')); }
+  else hideTip();
+});
+document.addEventListener('mouseleave', hideTip, true);
+
+// ===================== Init =====================
+render();
+setTimeout(()=>{ // populate default selects after first paint if user lands on those tabs later
+}, 0);
+
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('./sw.js').catch(()=>{ /* ex: rodando de file:// localmente */ });
+  });
+}
+
+</script>
+</body>
+</html>
