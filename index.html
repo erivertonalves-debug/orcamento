@@ -4554,8 +4554,8 @@ function faturaBodyHTML(cardId){
   const allMonths = Object.keys(byInvoice).sort(); // ordem cronológica crescente
   const mesAtual = todayInfo().month;
   const futureMonths = allMonths.filter(m=>m>=mesAtual);
-  // faturas anteriores: só as que ainda têm saldo (zeradas/quitadas não aparecem nem no recolhido)
-  const pastMonths = allMonths.filter(m=>m<mesAtual && Math.abs(invoiceTotal(m))>0.004);
+  // faturas anteriores: todas, mesmo as já quitadas — o valor mostrado é sempre o valor real da fatura
+  const pastMonths = allMonths.filter(m=>m<mesAtual);
   // faturas em exibição principal: da atual em diante (se o cartão não tiver nada atual/futuro, cai pra última existente)
   const invoices = futureMonths.length ? futureMonths : allMonths.slice(-1);
 
