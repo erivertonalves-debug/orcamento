@@ -4540,7 +4540,12 @@ function faturaBodyHTML(cardId){
   const items = state.lancamentos.filter(l=>l.origemTipo==='cartao' && l.origemId===cardId);
   const byInvoice = {};
   items.forEach(l=>{ (byInvoice[l.fatura] = byInvoice[l.fatura]||[]).push(l); });
-  const invoices = Object.keys(byInvoice).sort().reverse();
+  const allMonths = Object.keys(byInvoice).sort(); // ordem cronológica crescente
+  const mesAtual = todayInfo().month;
+  const futureMonths = allMonths.filter(m=>m>=mesAtual);
+  const pastMonths = allMonths.filter(m=>m<mesAtual);
+  // faturas em exibição principal: da atual em diante (se o cartão não tiver nada atual/futuro, cai pra última existente)
+  const invoices = futureMonths.length ? futureMonths : allMonths.slice(-1);
 
   const vencBox = `
     <div class="card">
@@ -4551,30 +4556,36 @@ function faturaBodyHTML(cardId){
       </div>
     </div>`;
 
-  if(invoices.length===0) return vencBox + `<div class="card"><div class="empty">Nenhuma fatura carregada para este cartão ainda.</div></div>`;
+  if(allMonths.length===0) return vencBox + `<div class="card"><div class="empty">Nenhuma fatura carregada para este cartão ainda.</div></div>`;
 
-  // histórico (barra) de totais por fatura
-  const totals = invoices.map(m=>({m, total: byInvoice[m].reduce((s,l)=>s+Math.abs(Math.min(l.valor,0)),0)}));
-  const maxT = Math.max(...totals.map(t=>t.total),1);
+  function invoiceTotal(m){
+    const list = byInvoice[m];
+    const total = list.reduce((s,l)=>s+Math.abs(Math.min(l.valor,0)),0);
+    const creditos = list.reduce((s,l)=>s+Math.max(l.valor,0),0);
+    return Math.round((total-creditos)*100)/100;
+  }
+
+  // gráfico (barras) — da fatura atual em diante
+  const totals = invoices.map(m=>({m, total: invoiceTotal(m)}));
+  const maxT = Math.max(...totals.map(t=>Math.abs(t.total)),1);
 
   const histHtml = `
     <div class="card">
       <h2>Histórico de faturas <small>${card.name}${card.limite?` · limite R$ ${card.limite.toLocaleString('pt-BR',{minimumFractionDigits:2})}`:''}</small></h2>
+      <div class="sub" style="margin:-4px 0 10px;">Da fatura atual em diante</div>
       ${totals.map(t=>`
         <div class="barrow">
-          <div class="lbl">${monthLabel(t.m)}</div>
-          <div class="track"><div class="fill" style="width:${(t.total/maxT*100).toFixed(1)}%; background:${slotColor(0)}"></div></div>
+          <div class="lbl">${monthLabel(t.m)}${t.m===mesAtual?' <b>· atual</b>':''}</div>
+          <div class="track"><div class="fill" style="width:${(Math.abs(t.total)/maxT*100).toFixed(1)}%; background:${t.m===mesAtual?slotColor(1):slotColor(0)}"></div></div>
           <div class="num">${fmt(t.total)}</div>
         </div>`).join('')}
     </div>`;
 
-  const invoiceHtml = invoices.map(m=>{
+  function invoiceDetailsHTML(m, openByDefault){
     const list = byInvoice[m].slice().sort((a,b)=>a.data.localeCompare(b.data));
-    const total = list.reduce((s,l)=>s+Math.abs(Math.min(l.valor,0)),0);
-    const creditos = list.reduce((s,l)=>s+Math.max(l.valor,0),0);
     const venc = cardVencDate(cardId, m);
-    return `<details class="invoice" ${m===invoices[0]?'open':''}>
-      <summary><span>${monthLabel(m)} ${venc?`· vencimento ${fmtDate(venc)}`:'· <span class="sub">sem dia de vencimento cadastrado</span>'}</span><span class="tot">${fmt(total-creditos)}</span></summary>
+    return `<details class="invoice" ${openByDefault?'open':''}>
+      <summary><span>${monthLabel(m)}${m===mesAtual?' · <b>atual</b>':''} ${venc?`· vencimento ${fmtDate(venc)}`:'· <span class="sub">sem dia de vencimento cadastrado</span>'}</span><span class="tot">${fmt(invoiceTotal(m))}</span></summary>
       <div class="body">
         <div class="tblwrap"><table><thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th><th>Competência</th><th style="text-align:right">Valor</th><th></th></tr></thead>
         <tbody>
@@ -4589,9 +4600,19 @@ function faturaBodyHTML(cardId){
         </tbody></table></div>
       </div>
     </details>`;
-  }).join('');
+  }
 
-  return vencBox + histHtml + `<div class="card"><h2>Itens por fatura</h2>${invoiceHtml}</div>`;
+  const invoiceHtml = invoices.map(m=>invoiceDetailsHTML(m, m===mesAtual || m===invoices[0])).join('');
+
+  let pastHtml = '';
+  if(pastMonths.length){
+    pastHtml = `<details class="invoice" style="margin-top:10px; border-style:dashed;">
+      <summary><span>📁 Faturas anteriores (${pastMonths.length})</span><span class="sub"></span></summary>
+      <div class="body">${pastMonths.slice().reverse().map(m=>invoiceDetailsHTML(m,false)).join('')}</div>
+    </details>`;
+  }
+
+  return vencBox + histHtml + `<div class="card"><h2>Itens por fatura <small>da atual em diante</small></h2>${invoiceHtml}${pastHtml}</div>`;
 }
 
 // ===================== Extratos por conta =====================
