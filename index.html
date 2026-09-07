@@ -109,6 +109,12 @@ tr:hover td{background:var(--surface-2);}
 .barrow .track{flex:1; position:relative; height:20px;}
 .barrow .fill{position:absolute; top:2px; height:16px; border-radius:4px; background:var(--s1);}
 .barrow .num{width:82px; flex:0 0 82px; font-size:12.5px; text-align:left; font-variant-numeric:tabular-nums; color:var(--text-primary);}
+.vbarchart{display:flex; align-items:flex-end; gap:18px; padding-top:8px; overflow-x:auto;}
+.vbarcol{display:flex; flex-direction:column; align-items:center; flex:0 0 auto; width:56px;}
+.vbarcol .vbar-val{font-size:11.5px; font-weight:600; color:var(--text-primary); white-space:nowrap; margin-bottom:4px; font-variant-numeric:tabular-nums;}
+.vbarcol .vbar-track{width:34px; height:140px; display:flex; align-items:flex-end;}
+.vbarcol .vbar-fill{width:100%; border-radius:5px 5px 0 0; background:var(--s1); min-height:2px;}
+.vbarcol .vbar-lbl{font-size:11.5px; color:var(--text-secondary); margin-top:6px; text-align:center; white-space:nowrap;}
 .tabs{display:flex; gap:6px; margin-bottom:16px; border-bottom:1px solid var(--border);}
 .tabbtn{padding:9px 14px; font-size:13px; border:none; background:transparent; color:var(--text-secondary); cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-1px;}
 .tabbtn.active{color:var(--s1); border-bottom-color:var(--s1); font-weight:600;}
@@ -212,6 +218,11 @@ select.inlinesel{font-size:12px; padding:4px 6px; border-radius:6px; border:1px 
   .tile .value{font-size:20px;}
   .barrow .lbl{width:96px; flex:0 0 96px; font-size:11.5px;}
   .barrow .num{width:72px; flex:0 0 72px; font-size:11.5px;}
+  .vbarchart{gap:10px;}
+  .vbarcol{width:44px;}
+  .vbarcol .vbar-track{width:26px; height:110px;}
+  .vbarcol .vbar-val{font-size:10.5px;}
+  .vbarcol .vbar-lbl{font-size:10.5px;}
   .catmgr-row{grid-template-columns:1fr 1fr 66px 50px; font-size:12.5px;}
   .filters{gap:6px;}
   .filters select, .filters input{flex:1 1 140px; min-width:0;}
@@ -4543,7 +4554,8 @@ function faturaBodyHTML(cardId){
   const allMonths = Object.keys(byInvoice).sort(); // ordem cronológica crescente
   const mesAtual = todayInfo().month;
   const futureMonths = allMonths.filter(m=>m>=mesAtual);
-  const pastMonths = allMonths.filter(m=>m<mesAtual);
+  // faturas anteriores: só as que ainda têm saldo (zeradas/quitadas não aparecem nem no recolhido)
+  const pastMonths = allMonths.filter(m=>m<mesAtual && Math.abs(invoiceTotal(m))>0.004);
   // faturas em exibição principal: da atual em diante (se o cartão não tiver nada atual/futuro, cai pra última existente)
   const invoices = futureMonths.length ? futureMonths : allMonths.slice(-1);
 
@@ -4573,12 +4585,14 @@ function faturaBodyHTML(cardId){
     <div class="card">
       <h2>Histórico de faturas <small>${card.name}${card.limite?` · limite R$ ${card.limite.toLocaleString('pt-BR',{minimumFractionDigits:2})}`:''}</small></h2>
       <div class="sub" style="margin:-4px 0 10px;">Da fatura atual em diante</div>
-      ${totals.map(t=>`
-        <div class="barrow">
-          <div class="lbl">${monthLabel(t.m)}${t.m===mesAtual?' <b>· atual</b>':''}</div>
-          <div class="track"><div class="fill" style="width:${(Math.abs(t.total)/maxT*100).toFixed(1)}%; background:${t.m===mesAtual?slotColor(1):slotColor(0)}"></div></div>
-          <div class="num">${fmt(t.total)}</div>
+      <div class="vbarchart">
+        ${totals.map(t=>`
+        <div class="vbarcol">
+          <div class="vbar-val">${fmt(t.total)}</div>
+          <div class="vbar-track"><div class="vbar-fill" style="height:${(Math.abs(t.total)/maxT*100).toFixed(1)}%; background:${t.m===mesAtual?slotColor(1):slotColor(0)}"></div></div>
+          <div class="vbar-lbl">${monthLabel(t.m)}${t.m===mesAtual?'<br><b>atual</b>':''}</div>
         </div>`).join('')}
+      </div>
     </div>`;
 
   function invoiceDetailsHTML(m, openByDefault){
