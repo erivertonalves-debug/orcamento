@@ -128,6 +128,11 @@ tr:hover td{background:var(--surface-2);}
 .pill.warn{background:rgba(250,178,25,.18); color:#a06600;}
 .pill.late{background:rgba(208,59,59,.14); color:var(--critical);}
 .flashmsg{background:rgba(12,163,12,.12); color:var(--good); border:1px solid rgba(12,163,12,.35); border-radius:10px; padding:10px 14px; font-size:13px; font-weight:600; margin-bottom:12px;}
+.filterrow{display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end;}
+.filterrow > div{min-width:130px;}
+.filterrow label{display:block; font-size:11px; color:var(--text-muted); margin-bottom:3px;}
+.linklike{background:none; border:none; padding:0; margin:0; font:inherit; color:inherit; font-weight:600; cursor:pointer; text-decoration:underline dotted; text-underline-offset:3px;}
+.linklike:hover{color:var(--s1);}
 .pill.over{background:rgba(235,104,52,.16); color:var(--s2);}
 .pill.plan{background:var(--surface-2); color:var(--text-muted); border:1px solid var(--border);}
 textarea.obsbox{width:100%; min-height:32px; font-family:inherit; font-size:12.5px; padding:6px 8px; border-radius:6px; border:1px solid var(--border); background:var(--surface-3); color:var(--text-primary); resize:vertical;}
@@ -292,6 +297,16 @@ select.inlinesel{font-size:12px; padding:4px 6px; border-radius:6px; border:1px 
       <button class="btn" id="btnRateioSalvar" type="button">Salvar rateio</button>
       <button class="btn secondary" id="btnRateioRemover" type="button">Remover rateio</button>
       <button class="btn secondary" id="btnRateioCancelar" type="button">Cancelar</button>
+    </div>
+  </div>
+</div>
+<div class="modal-overlay" id="drillOverlay" style="display:none;">
+  <div class="modal-box">
+    <h3>🔎 De onde veio esse valor</h3>
+    <div class="sub" id="drillInfo" style="margin-bottom:12px;"></div>
+    <div id="drillRows"></div>
+    <div style="display:flex; gap:10px; margin-top:16px; flex-wrap:wrap;">
+      <button class="btn secondary" id="btnDrillFechar" type="button">Fechar</button>
     </div>
   </div>
 </div>
@@ -3537,7 +3552,7 @@ function render(){
   else if(currentTab==='aberto'){ main.innerHTML = viewAberto(); }
   else if(currentTab==='fluxo'){ main.innerHTML = viewFluxo(); wireFluxo(); }
   else if(currentTab==='faturas'){ main.innerHTML = viewFaturas(); render_faturaFor(state.cards[0].id); }
-  else if(currentTab==='extratos'){ main.innerHTML = viewExtratos(); render_extratoFor(state.accounts[0].id); }
+  else if(currentTab==='extratos'){ main.innerHTML = viewExtratos(); wireExtratoFiltros(); render_extratoFor(state.accounts[0].id); }
   else if(currentTab==='emprestimos'){ main.innerHTML = viewEmprestimos(); wireEmprestimos(); }
   wireCommon();
 }
@@ -4173,6 +4188,51 @@ function wireRateioModal(){
 }
 wireRateioModal();
 
+// ===================== Drill-down (de onde veio o valor de "Realizado") =====================
+// Refaz exatamente o mesmo filtro/soma de realizadoForLine(), mas devolvendo os lançamentos
+// (já expandidos por rateio) que compõem o total, em vez de só o número final.
+function drillDownItens(line, month){
+  return state.lancamentos
+    .filter(l=> l.origemTipo==='cartao' ? l.fatura===month : l.data.slice(0,7)===month)
+    .flatMap(l=>{
+      const partes = rateioOf(l).filter(p=>p.categoriaId===line.categoriaId);
+      if(!partes.length) return [];
+      const origemNome = l.origemTipo==='conta' ? (accById(l.origemId)?.name || l.origemId) : (cardById(l.origemId)?.name || l.origemId);
+      return partes.map(p=>({
+        data: l.data, descricao: l.descricao, origemNome,
+        valor: p.valor, rateado: !!(l.rateio && l.rateio.length>1),
+      }));
+    })
+    .sort((a,b)=>a.data.localeCompare(b.data));
+}
+function openDrillDown(lineId, month){
+  const line = orcById(lineId);
+  if(!line) return;
+  const cat = catById(line.categoriaId);
+  const itens = drillDownItens(line, month);
+  const total = Math.round(itens.reduce((s,i)=>s+i.valor,0)*100)/100;
+  document.getElementById('drillInfo').innerHTML = `<b>${cat.nome}</b> · ${monthLabel(month)} · total realizado: <b>${fmt(total)}</b>`;
+  document.getElementById('drillRows').innerHTML = itens.length===0
+    ? `<div class="empty">Nenhum lançamento encontrado pra essa categoria neste mês.</div>`
+    : `<div class="tblwrap"><table>
+        <thead><tr><th>Data</th><th>Descrição</th><th>Origem</th><th style="text-align:right">Valor</th></tr></thead>
+        <tbody>${itens.map(i=>`<tr>
+          <td>${fmtDate(i.data)}</td>
+          <td>${i.descricao}${i.rateado ? ' <span class="sub">(rateado)</span>' : ''}</td>
+          <td>${i.origemNome}</td>
+          <td style="text-align:right" class="${i.valor>=0?'val-pos':'val-neg'}">${fmt(i.valor)}</td>
+        </tr>`).join('')}</tbody>
+      </table></div>`;
+  document.getElementById('drillOverlay').style.display = 'flex';
+}
+function closeDrillDown(){
+  document.getElementById('drillOverlay').style.display = 'none';
+}
+function wireDrillModal(){
+  document.getElementById('btnDrillFechar').addEventListener('click', closeDrillDown);
+}
+wireDrillModal();
+
 // ===================== Orçado x Realizado =====================
 let orcMonth = null;
 function viewOrcado(){
@@ -4224,7 +4284,7 @@ function viewOrcado(){
             <td>${r.cat.nome}</td>
             <td><span class="daybadge">${dia}</span></td>
             <td style="text-align:right">${r.orcado!==undefined ? fmt(r.orcado) : '—'}</td>
-            <td style="text-align:right">${Math.abs(r.real)>0.005 ? fmt(r.real) : '—'}</td>
+            <td style="text-align:right">${Math.abs(r.real)>0.005 ? `<button type="button" class="linklike" data-drill-line="${r.line.id}" data-drill-month="${orcMonth}" title="Ver de onde veio esse valor">${fmt(r.real)} 🔎</button>` : '—'}</td>
             <td style="text-align:right">${diff!==null && Math.abs(r.real)>0.005 ? fmt(diff) : '—'}</td>
             <td><span class="pill ${r.status.pill}">${r.status.label}</span></td>
             <td><textarea class="obsbox" rows="1" data-obs="${r.line.id}">${r.line.observacao||''}</textarea></td>
@@ -4247,6 +4307,9 @@ function wireOrcado(){
   });
   const btnCopiar = document.getElementById('btnCopiarMesAnt');
   if(btnCopiar) btnCopiar.addEventListener('click', copiarMesAnterior);
+  document.querySelectorAll('[data-drill-line]').forEach(el=>{
+    el.addEventListener('click', ()=> openDrillDown(parseInt(el.dataset.drillLine), el.dataset.drillMonth));
+  });
 }
 
 function copiarMesAnterior(){
@@ -4648,31 +4711,87 @@ function viewExtratos(){
       <div><h1>Extratos por conta</h1><div class="sub">Lançamentos das contas correntes, com saldo estimado ao longo do período</div></div>
       <select data-account-select id="selAccount">${state.accounts.map(a=>`<option value="${a.id}">${a.name}</option>`).join('')}</select>
     </div>
+    <div class="card">
+      <div class="filterrow">
+        <div><label>De</label><input type="date" id="extDe"></div>
+        <div><label>Até</label><input type="date" id="extAte"></div>
+        <div><label>Tipo</label>
+          <select id="extTipo">
+            <option value="todos">Tudo</option>
+            <option value="entrada">Só entradas</option>
+            <option value="saida">Só saídas</option>
+          </select>
+        </div>
+        <div><button class="btn secondary" type="button" id="btnLimparFiltroExt">Limpar filtro</button></div>
+      </div>
+    </div>
     <div id="extratoBody"></div>
   `;
 }
+function getExtratoFiltros(){
+  return {
+    de: document.getElementById('extDe')?.value || null,
+    ate: document.getElementById('extAte')?.value || null,
+    tipo: document.getElementById('extTipo')?.value || 'todos',
+  };
+}
+function wireExtratoFiltros(){
+  ['extDe','extAte','extTipo'].forEach(id=>{
+    document.getElementById(id).addEventListener('change', ()=> render_extratoFor(document.getElementById('selAccount').value));
+  });
+  document.getElementById('btnLimparFiltroExt').addEventListener('click', ()=>{
+    document.getElementById('extDe').value = '';
+    document.getElementById('extAte').value = '';
+    document.getElementById('extTipo').value = 'todos';
+    render_extratoFor(document.getElementById('selAccount').value);
+  });
+}
 function render_extratoFor(accId){
   const el = document.getElementById('extratoBody');
-  el.innerHTML = extratoBodyHTML(accId || state.accounts[0].id);
+  el.innerHTML = extratoBodyHTML(accId || state.accounts[0].id, getExtratoFiltros());
   wireLinhasLancamento(el);
 }
-function extratoBodyHTML(accId){
+function extratoBodyHTML(accId, filtros){
+  filtros = filtros || {de:null, ate:null, tipo:'todos'};
   const acc = accById(accId);
-  const list = state.lancamentos.filter(l=>l.origemTipo==='conta' && l.origemId===accId).slice().sort((a,b)=>a.data.localeCompare(b.data) || a.id-b.id);
-  if(list.length===0) return `<div class="card"><div class="empty">Nenhum lançamento para esta conta ainda.</div></div>`;
-  const net = list.reduce((s,l)=>s+l.valor,0);
-  const saldoInicial = Math.round((acc.saldoAtual - net)*100)/100;
-  let running = saldoInicial;
-  const rows = list.map(l=>{ running = Math.round((running+l.valor)*100)/100; return {...l, saldo:running}; });
+  const listAll = state.lancamentos.filter(l=>l.origemTipo==='conta' && l.origemId===accId).slice().sort((a,b)=>a.data.localeCompare(b.data) || a.id-b.id);
+  if(listAll.length===0) return `<div class="card"><div class="empty">Nenhum lançamento para esta conta ainda.</div></div>`;
+
+  // Saldo (running) calculado sobre TODOS os lançamentos da conta, em ordem cronológica — assim o
+  // valor de "Saldo" de cada linha continua sendo o saldo real naquele dia, mesmo que o filtro de
+  // tipo (entrada/saída) esconda outras linhas no meio do caminho.
+  const netTudo = listAll.reduce((s,l)=>s+l.valor,0);
+  const saldoInicialGlobal = Math.round((acc.saldoAtual - netTudo)*100)/100;
+  let running = saldoInicialGlobal;
+  const comSaldo = listAll.map(l=>{ running = Math.round((running+l.valor)*100)/100; return {...l, saldo:running}; });
+
+  // Saldo estimado bem no início do período filtrado: o saldo (running) logo antes do 1º
+  // lançamento que cai dentro do filtro de data — sem filtro de data, isso é o mesmo saldo inicial global.
+  const dentroPeriodo = (l) => (!filtros.de || l.data>=filtros.de) && (!filtros.ate || l.data<=filtros.ate);
+  const idxPrimeiro = comSaldo.findIndex(l=>dentroPeriodo(l));
+  const saldoInicioPeriodo = idxPrimeiro<=0 ? saldoInicialGlobal : comSaldo[idxPrimeiro-1].saldo;
+
+  const listPeriodo = comSaldo.filter(dentroPeriodo);
+  const entradasPeriodo = Math.round(listPeriodo.reduce((s,l)=>s+Math.max(l.valor,0),0)*100)/100;
+  const saidasPeriodo = Math.round(listPeriodo.reduce((s,l)=>s+Math.max(-l.valor,0),0)*100)/100;
+  const netPeriodo = Math.round((entradasPeriodo-saidasPeriodo)*100)/100;
+
+  const passaTipo = (l) => filtros.tipo==='entrada' ? l.valor>=0 : (filtros.tipo==='saida' ? l.valor<0 : true);
+  const rows = listPeriodo.filter(passaTipo);
+  const filtroAtivo = !!(filtros.de || filtros.ate || filtros.tipo!=='todos');
+
   return `
     <div class="tiles">
-      <div class="tile"><div class="label">Saldo estimado no início do período</div><div class="value">${fmt(saldoInicial)}</div></div>
+      <div class="tile"><div class="label">Saldo estimado no início do período</div><div class="value">${fmt(saldoInicioPeriodo)}</div></div>
       <div class="tile"><div class="label">Saldo atual (${fmtDate(acc.dataExtrato)})</div><div class="value">${fmt(acc.saldoAtual)}</div></div>
-      <div class="tile"><div class="label">Movimentação líquida no período</div><div class="value ${net>=0?'pos':'neg'}">${fmt(net)}</div></div>
+      <div class="tile"><div class="label">Entradas no período</div><div class="value pos">${fmt(entradasPeriodo)}</div></div>
+      <div class="tile"><div class="label">Saídas no período</div><div class="value neg">${fmt(-saidasPeriodo)}</div></div>
+      <div class="tile"><div class="label">Movimentação líquida no período</div><div class="value ${netPeriodo>=0?'pos':'neg'}">${fmt(netPeriodo)}</div></div>
     </div>
     <div class="card">
       <h2>Extrato <small>${acc.name} · ${acc.banco}</small></h2>
       <div class="sub" style="margin:-6px 0 12px;">Ajuste a categoria (e a competência, se for diferente da data) direto na linha do lançamento.</div>
+      ${rows.length===0 ? `<div class="empty">Nenhum lançamento encontrado com esses filtros.</div>` : `
       <div class="tblwrap"><table>
         <thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th><th>Competência</th><th style="text-align:right">Valor</th><th style="text-align:right">Saldo</th><th></th></tr></thead>
         <tbody>
@@ -4686,7 +4805,8 @@ function extratoBodyHTML(accId){
           <td><button class="btn danger" style="padding:4px 9px; font-size:11.5px" data-del-lanc="${l.id}">Excluir</button></td>
         </tr>`).join('')}
         </tbody>
-      </table></div>
+      </table></div>`}
+      ${filtroAtivo ? `<div class="sub" style="margin-top:8px;">${rows.length} de ${listAll.length} lançamentos (filtro ativo)</div>` : ''}
     </div>
   `;
 }
