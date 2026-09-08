@@ -127,6 +127,7 @@ tr:hover td{background:var(--surface-2);}
 .pill.good{background:rgba(12,163,12,.12); color:var(--good);}
 .pill.warn{background:rgba(250,178,25,.18); color:#a06600;}
 .pill.late{background:rgba(208,59,59,.14); color:var(--critical);}
+.flashmsg{background:rgba(12,163,12,.12); color:var(--good); border:1px solid rgba(12,163,12,.35); border-radius:10px; padding:10px 14px; font-size:13px; font-weight:600; margin-bottom:12px;}
 .pill.over{background:rgba(235,104,52,.16); color:var(--s2);}
 .pill.plan{background:var(--surface-2); color:var(--text-muted); border:1px solid var(--border);}
 textarea.obsbox{width:100%; min-height:32px; font-family:inherit; font-size:12.5px; padding:6px 8px; border-radius:6px; border:1px solid var(--border); background:var(--surface-3); color:var(--text-primary); resize:vertical;}
@@ -3115,6 +3116,11 @@ let state;
 ensureDefaults();
 let currentTab = 'dashboard';
 let editingId = null;
+// Mensagem de confirmação de "sucesso" pra telas que não têm mais uma lista embaixo do formulário
+// (ex: Lançamentos, depois da reforma) — sem isso, quem adiciona um lançamento manual não vê nenhuma
+// mudança na tela e acha que não funcionou, mesmo o lançamento tendo sido salvo certinho. Fica fora
+// do `state` de propósito (não deve ir pro JSON exportado nem pro localStorage).
+let flashMsg = null;
 
 // Garante contas/categorias do sistema mesmo em dados antigos importados (ex: carteira em dinheiro,
 // categoria de transferência entre contas e de ajuste de saldo).
@@ -3723,10 +3729,13 @@ function categoriaDonutChart(entries, total){
 function viewLancamentos(){
   const cats = state.categories;
   const catsGerenciaveis = cats.filter(c=>!c.id.startsWith('sys_'));
+  const msg = flashMsg;
+  flashMsg = null; // mostra só uma vez, na renderização logo depois de salvar
   return `
     <div class="topbar">
       <div><h1>Lançamentos</h1><div class="sub">Todos os lançamentos de contas e cartões — adicione, edite ou remova aqui</div></div>
     </div>
+    ${msg ? `<div class="flashmsg">${msg}</div>` : ''}
     <div class="card">
       <h2>📷 Lançar por foto do cupom fiscal <small>leitura automática — beta</small></h2>
       <div class="ocrbox" id="ocrBox">
@@ -3964,6 +3973,8 @@ function wireLancamentos(){
     if(origemTipo==='cartao' && totalParcelas>1){
       gerarParcelasFuturas({...item, descricaoBase}, totalParcelas);
     }
+    const origemNome = origemTipo==='conta' ? accById(item.origemId).name : cardById(item.origemId).name;
+    flashMsg = `✅ Lançamento adicionado: "${item.descricao}" — ${fmt(item.valor)} em ${origemNome}. ${origemTipo==='conta' ? 'Confira em "Extratos por conta".' : 'Confira em "Faturas por cartão".'}`;
     e.target.querySelector('[name=parcelas]').value = 1;
     document.getElementById('inpCompetencia').dataset.tocado = '';
     render();
@@ -3976,6 +3987,7 @@ function wireLancamentos(){
     if(deId===paraId){ alert('Escolha contas diferentes em "De" e "Para".'); return; }
     if(!valor || valor<=0){ alert('Informe um valor de transferência maior que zero.'); return; }
     transferir({data: fd.get('data'), deId, paraId, valor, descricao: fd.get('descricao')});
+    flashMsg = `🔁 Transferência registrada: ${fmt(valor)} de ${accById(deId).name} para ${accById(paraId).name}.`;
     e.target.reset();
     render();
   });
