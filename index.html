@@ -184,6 +184,11 @@ select.inlinesel{font-size:12px; padding:4px 6px; border-radius:6px; border:1px 
 .rateiorow{display:grid; grid-template-columns:1fr 120px 32px; gap:8px; margin-bottom:8px; align-items:center;}
 .rateioTotal{font-size:12.5px; color:var(--text-muted); margin-top:8px; padding-top:10px; border-top:1px solid var(--border);}
 .rateioTotal.bad{color:var(--critical); font-weight:600;}
+.modal-box.wide{max-width:660px;}
+.mesgrid{display:grid; grid-template-columns:repeat(auto-fit,minmax(100px,1fr)); gap:8px; margin:10px 0 14px;}
+.mesgrid label{display:block; font-size:11px; color:var(--text-muted); margin-bottom:3px;}
+.mesgrid input{width:100%; box-sizing:border-box;}
+.mesgrid input:disabled{background:var(--surface-3); color:var(--text-muted); cursor:not-allowed;}
 .inlinesel{max-width:220px;}
 .tag.rateiotag{cursor:pointer;}
 
@@ -307,6 +312,39 @@ select.inlinesel{font-size:12px; padding:4px 6px; border-radius:6px; border:1px 
     <div id="drillRows"></div>
     <div style="display:flex; gap:10px; margin-top:16px; flex-wrap:wrap;">
       <button class="btn secondary" id="btnDrillFechar" type="button">Fechar</button>
+    </div>
+  </div>
+</div>
+<div class="modal-overlay" id="orcOverlay" style="display:none;">
+  <div class="modal-box wide">
+    <h3 id="orcModalTitle">+ Novo registro de orçamento</h3>
+    <div class="sub" id="orcModalSub" style="margin-bottom:10px;"></div>
+    <div class="formrow" style="grid-template-columns:1fr 1fr;">
+      <div><label>Categoria</label><select id="orcCategoria"></select></div>
+      <div><label>Frequência</label><select id="orcFrequencia">
+        <option value="mensal">Mensal (dia fixo)</option>
+        <option value="multi">Vários dias no mês</option>
+        <option value="semanal">Semanal (dias 5,12,19,26)</option>
+        <option value="diario">Diário</option>
+      </select></div>
+    </div>
+    <div class="formrow" id="orcDiaRow" style="grid-template-columns:1fr;">
+      <div><label id="orcDiaLabel">Dia de vencimento</label><input type="text" id="orcDia" placeholder="ex: 10"></div>
+    </div>
+    <div class="sub" style="margin-top:6px;">Preencher parcelamento automaticamente (opcional):</div>
+    <div class="formrow" style="grid-template-columns:1fr 1fr 1fr auto;">
+      <div><label>Valor da parcela</label><input type="number" step="0.01" id="orcParcValor"></div>
+      <div><label>Qtd. de parcelas</label><input type="number" min="1" id="orcParcQtd"></div>
+      <div><label>Mês inicial</label><select id="orcParcMesIni"></select></div>
+      <div><button class="btn secondary" type="button" id="btnOrcPreencherParcelas">Preencher</button></div>
+    </div>
+    <div class="sub" style="margin-top:10px;">Valor orçado por mês (🔒 = já tem lançamento associado, não pode ser mudado aqui):</div>
+    <div class="mesgrid" id="orcMesesGrid"></div>
+    <div><label class="sub" style="display:block; margin-bottom:3px;">Observação</label><textarea id="orcObs" rows="2" style="width:100%; box-sizing:border-box;"></textarea></div>
+    <div style="display:flex; gap:10px; margin-top:16px; flex-wrap:wrap;">
+      <button class="btn" id="btnOrcSalvar" type="button">Salvar</button>
+      <button class="btn danger" id="btnOrcExcluir" type="button">🗑 Excluir registro</button>
+      <button class="btn secondary" id="btnOrcCancelar" type="button">Cancelar</button>
     </div>
   </div>
 </div>
@@ -3242,7 +3280,12 @@ function statusForLine(line, month){
     return {label: diff>0 ? 'Pago (acima do orçado)' : 'Pago (abaixo do orçado)', pill: diff>0?'over':'good'};
   }
   // sem realizado
-  if(month < curMonth) return {label:'Sem dados no período carregado', pill:'plan'};
+  if(month < curMonth){
+    // mês já encerrado: se tinha valor orçado e nunca apareceu um lançamento pra ele,
+    // isso é um sinal de pagamento faltando (não é só "sem dados") — vale destacar em Em Aberto.
+    if(orcado===undefined) return {label:'—', pill:'plan', ok:true};
+    return {label:'⚠ Não localizado (mês já encerrado)', pill:'late'};
+  }
   if(month > curMonth) return {label:'Planejado', pill:'plan'};
   // mês corrente: comparar dia(s) de vencimento com hoje
   const occ = occurrencesForLine(line, month);
@@ -3549,7 +3592,7 @@ function render(){
   if(currentTab==='dashboard') main.innerHTML = viewDashboard();
   else if(currentTab==='lancamentos'){ main.innerHTML = viewLancamentos(); wireLancamentos(); }
   else if(currentTab==='orcado'){ main.innerHTML = viewOrcado(); wireOrcado(); }
-  else if(currentTab==='aberto'){ main.innerHTML = viewAberto(); }
+  else if(currentTab==='aberto'){ main.innerHTML = viewAberto(); wireAberto(); }
   else if(currentTab==='fluxo'){ main.innerHTML = viewFluxo(); wireFluxo(); }
   else if(currentTab==='faturas'){ main.innerHTML = viewFaturas(); render_faturaFor(state.cards[0].id); }
   else if(currentTab==='extratos'){ main.innerHTML = viewExtratos(); wireExtratoFiltros(); render_extratoFor(state.accounts[0].id); }
@@ -4235,21 +4278,35 @@ wireDrillModal();
 
 // ===================== Orçado x Realizado =====================
 let orcMonth = null;
+let orcFiltroGrupo = '';
+let orcFiltroCategoria = '';
+let orcFiltroStatus = '';
+const ORC_STATUS_LABELS = {plan:'Planejado / sem dado', good:'Pago/recebido - confere', over:'Pago acima do orçado', warn:'A vencer', late:'Atrasado / não localizado'};
 function viewOrcado(){
   if(!orcMonth) orcMonth = todayInfo().month;
   const cats = state.categories;
   const lines = state.orcamento;
-  const rows = lines.map(line=>{
+  const allRows = lines.map(line=>{
     const orcado = line.valores[orcMonth];
     const real = realizadoForLine(line, orcMonth);
     const status = statusForLine(line, orcMonth);
     return {line, cat: catById(line.categoriaId), orcado, real, status};
   }).sort((a,b)=> a.cat.grupo.localeCompare(b.cat.grupo) || a.cat.nome.localeCompare(b.cat.nome));
 
-  const totalOrcReceita = rows.filter(r=>r.cat.tipo==='receita').reduce((s,r)=>s+(r.orcado||0),0);
-  const totalRealReceita = rows.filter(r=>r.cat.tipo==='receita').reduce((s,r)=>s+r.real,0);
-  const totalOrcDespesa = rows.filter(r=>r.cat.tipo==='despesa').reduce((s,r)=>s+(r.orcado||0),0);
-  const totalRealDespesa = rows.filter(r=>r.cat.tipo==='despesa').reduce((s,r)=>s+Math.abs(r.real),0);
+  const totalOrcReceita = allRows.filter(r=>r.cat.tipo==='receita').reduce((s,r)=>s+(r.orcado||0),0);
+  const totalRealReceita = allRows.filter(r=>r.cat.tipo==='receita').reduce((s,r)=>s+r.real,0);
+  const totalOrcDespesa = allRows.filter(r=>r.cat.tipo==='despesa').reduce((s,r)=>s+(r.orcado||0),0);
+  const totalRealDespesa = allRows.filter(r=>r.cat.tipo==='despesa').reduce((s,r)=>s+Math.abs(r.real),0);
+
+  // filtros (não afetam as tiles acima — essas continuam sempre com o total do mês inteiro)
+  const grupos = [...new Set(state.categories.map(c=>c.grupo))].sort();
+  const categoriasDoGrupo = state.categories.filter(c=>!c.id.startsWith('sys_') && (!orcFiltroGrupo || c.grupo===orcFiltroGrupo)).sort((a,b)=>a.nome.localeCompare(b.nome));
+  const rows = allRows.filter(r=>
+    (!orcFiltroGrupo || r.cat.grupo===orcFiltroGrupo) &&
+    (!orcFiltroCategoria || r.cat.id===orcFiltroCategoria) &&
+    (!orcFiltroStatus || r.status.pill===orcFiltroStatus)
+  );
+  const filtroAtivo = !!(orcFiltroGrupo || orcFiltroCategoria || orcFiltroStatus);
 
   return `
     <div class="topbar">
@@ -4258,10 +4315,18 @@ function viewOrcado(){
     <div class="monthtabs" id="orcMonthTabs">
       ${MESES_ORC.map(m=>`<button data-m="${m}" class="${m===orcMonth?'active':''}">${monthLabel(m)}</button>`).join('')}
     </div>
-    ${MESES_ORC.indexOf(orcMonth)>0 ? `
-    <div style="display:flex; justify-content:flex-end; margin:-6px 0 16px;">
-      <button class="btn secondary" id="btnCopiarMesAnt" title="Preenche as linhas ainda sem valor em ${monthLabel(orcMonth)} usando o valor de ${monthLabel(MESES_ORC[MESES_ORC.indexOf(orcMonth)-1])}">📋 Copiar valores do mês anterior</button>
-    </div>` : ''}
+    <div style="display:flex; justify-content:space-between; align-items:flex-end; gap:12px; flex-wrap:wrap; margin:-6px 0 16px;">
+      <div class="filterrow">
+        <div><label>Grupo</label><select id="orcFiltroGrupo"><option value="">Todos</option>${grupos.map(g=>`<option value="${g}" ${g===orcFiltroGrupo?'selected':''}>${g}</option>`).join('')}</select></div>
+        <div><label>Categoria</label><select id="orcFiltroCategoria"><option value="">Todas</option>${categoriasDoGrupo.map(c=>`<option value="${c.id}" ${c.id===orcFiltroCategoria?'selected':''}>${c.nome}</option>`).join('')}</select></div>
+        <div><label>Status</label><select id="orcFiltroStatus"><option value="">Todos</option>${Object.entries(ORC_STATUS_LABELS).map(([v,l])=>`<option value="${v}" ${v===orcFiltroStatus?'selected':''}>${l}</option>`).join('')}</select></div>
+        <div><button class="btn secondary" type="button" id="btnLimparFiltroOrc">Limpar filtro</button></div>
+      </div>
+      <div style="display:flex; gap:10px; flex-wrap:wrap;">
+        ${MESES_ORC.indexOf(orcMonth)>0 ? `<button class="btn secondary" id="btnCopiarMesAnt" title="Preenche as linhas ainda sem valor em ${monthLabel(orcMonth)} usando o valor de ${monthLabel(MESES_ORC[MESES_ORC.indexOf(orcMonth)-1])}">📋 Copiar valores do mês anterior</button>` : ''}
+        <button class="btn" type="button" id="btnOrcNovo">+ Novo registro</button>
+      </div>
+    </div>
     <div class="tiles">
       <div class="tile"><div class="label">Receitas orçadas</div><div class="value">${fmt(totalOrcReceita)}</div></div>
       <div class="tile"><div class="label">Receitas realizadas</div><div class="value pos">${fmt(totalRealReceita)}</div></div>
@@ -4269,11 +4334,12 @@ function viewOrcado(){
       <div class="tile"><div class="label">Despesas realizadas</div><div class="value neg">${fmt(totalRealDespesa)}</div></div>
     </div>
     <div class="card">
+      ${rows.length===0 ? `<div class="empty">Nenhum registro encontrado com esses filtros.</div>` : `
       <div class="tblwrap"><table>
         <thead><tr>
           <th>Grupo</th><th>Categoria</th><th>Dia venc.</th>
           <th style="text-align:right">Orçado</th><th style="text-align:right">Realizado</th><th style="text-align:right">Diferença</th>
-          <th>Status</th><th style="min-width:220px">Observação</th>
+          <th>Status</th><th style="min-width:220px">Observação</th><th></th>
         </tr></thead>
         <tbody>
         ${rows.map(r=>{
@@ -4288,10 +4354,15 @@ function viewOrcado(){
             <td style="text-align:right">${diff!==null && Math.abs(r.real)>0.005 ? fmt(diff) : '—'}</td>
             <td><span class="pill ${r.status.pill}">${r.status.label}</span></td>
             <td><textarea class="obsbox" rows="1" data-obs="${r.line.id}">${r.line.observacao||''}</textarea></td>
+            <td style="white-space:nowrap;">
+              <button class="btn secondary" type="button" style="padding:4px 8px; font-size:11.5px" data-orc-edit="${r.line.id}" title="Editar registro">✏️</button>
+              <button class="btn danger" type="button" style="padding:4px 8px; font-size:11.5px" data-orc-del="${r.line.id}" title="Excluir registro">🗑</button>
+            </td>
           </tr>`;
         }).join('')}
         </tbody>
-      </table></div>
+      </table></div>`}
+      ${filtroAtivo ? `<div class="sub" style="margin-top:8px;">${rows.length} de ${allRows.length} registros (filtro ativo)</div>` : ''}
     </div>
   `;
 }
@@ -4309,6 +4380,17 @@ function wireOrcado(){
   if(btnCopiar) btnCopiar.addEventListener('click', copiarMesAnterior);
   document.querySelectorAll('[data-drill-line]').forEach(el=>{
     el.addEventListener('click', ()=> openDrillDown(parseInt(el.dataset.drillLine), el.dataset.drillMonth));
+  });
+  document.getElementById('orcFiltroGrupo').addEventListener('change', (e)=>{ orcFiltroGrupo = e.target.value; orcFiltroCategoria=''; render(); });
+  document.getElementById('orcFiltroCategoria').addEventListener('change', (e)=>{ orcFiltroCategoria = e.target.value; render(); });
+  document.getElementById('orcFiltroStatus').addEventListener('change', (e)=>{ orcFiltroStatus = e.target.value; render(); });
+  document.getElementById('btnLimparFiltroOrc').addEventListener('click', ()=>{ orcFiltroGrupo=''; orcFiltroCategoria=''; orcFiltroStatus=''; render(); });
+  document.getElementById('btnOrcNovo').addEventListener('click', ()=> openOrcEditor(null));
+  document.querySelectorAll('[data-orc-edit]').forEach(btn=>{
+    btn.addEventListener('click', ()=> openOrcEditor(parseInt(btn.dataset.orcEdit)));
+  });
+  document.querySelectorAll('[data-orc-del]').forEach(btn=>{
+    btn.addEventListener('click', ()=> excluirOrcLine(parseInt(btn.dataset.orcDel)));
   });
 }
 
@@ -4337,29 +4419,172 @@ function copiarMesAnterior(){
   alert(`${copiados} linha(s) preenchida(s) em ${monthLabel(orcMonth)} com os valores de ${monthLabel(mesAnterior)}.${semDadoAnterior>0 ? ` (${semDadoAnterior} linha(s) continuam sem valor, pois ${monthLabel(mesAnterior)} também não tinha.)` : ''}`);
 }
 
+// ===================== Orçado x Realizado — incluir/editar/excluir registro =====================
+// Uma linha de orçamento cobre uma categoria ao longo dos meses (`valores`, um número por mês em
+// MESES_ORC). Um "registro em série" (ex: um parcelamento, ou uma despesa recorrente) é só uma
+// linha com valor em vários meses — não existe um objeto de "série" separado. Por isso a trava
+// "só pode ser alterado o que não tiver pagamento associado" é aplicada por MÊS: cada input do
+// grid de valores fica desabilitado se `realizadoForLine(line, mes)` já tiver algo lançado.
+let orcEditTargetId = null;
+let orcCreating = false;
+const orcUid = () => Math.max(0,...state.orcamento.map(o=>o.id)) + 1;
+function orcCategoriaOptions(selectedId){
+  return state.categories.filter(c=>!c.id.startsWith('sys_'))
+    .slice().sort((a,b)=> a.grupo.localeCompare(b.grupo) || a.nome.localeCompare(b.nome))
+    .map(c=>`<option value="${c.id}" ${c.id===selectedId?'selected':''}>${c.grupo} — ${c.nome}</option>`).join('');
+}
+function atualizarOrcDiaRow(){
+  const freq = document.getElementById('orcFrequencia').value;
+  const row = document.getElementById('orcDiaRow');
+  const label = document.getElementById('orcDiaLabel');
+  const input = document.getElementById('orcDia');
+  if(freq==='mensal'){ row.style.display=''; label.textContent='Dia de vencimento'; input.placeholder='ex: 10'; }
+  else if(freq==='multi'){ row.style.display=''; label.textContent='Dias do mês (separados por vírgula)'; input.placeholder='ex: 5,20'; }
+  else { row.style.display='none'; }
+}
+function renderOrcMesesGrid(line){
+  const grid = document.getElementById('orcMesesGrid');
+  grid.innerHTML = MESES_ORC.map(m=>{
+    const val = line ? line.valores[m] : undefined;
+    const travado = line ? Math.abs(realizadoForLine(line, m))>0.005 : false;
+    return `<div>
+      <label>${monthLabel(m)}${travado ? ' 🔒' : ''}</label>
+      <input type="number" step="0.01" data-orc-mes="${m}" value="${val!==undefined?val:''}" ${travado?'disabled title="Já tem lançamento associado neste mês — não pode ser alterado por aqui"':''}>
+    </div>`;
+  }).join('');
+}
+function openOrcEditor(lineId){
+  orcCreating = (lineId===null || lineId===undefined);
+  orcEditTargetId = orcCreating ? null : lineId;
+  const line = orcCreating ? null : orcById(lineId);
+  if(!orcCreating && !line) return;
+  document.getElementById('orcModalTitle').textContent = orcCreating ? '+ Novo registro de orçamento' : '✏️ Editar registro de orçamento';
+  document.getElementById('orcModalSub').textContent = orcCreating ? 'Categoria única, ou os N meses de um parcelamento.' : `${catById(line.categoriaId).grupo} — ${catById(line.categoriaId).nome}`;
+  document.getElementById('orcCategoria').innerHTML = orcCategoriaOptions(line ? line.categoriaId : null);
+  document.getElementById('orcFrequencia').value = line ? (line.frequencia || 'mensal') : 'mensal';
+  atualizarOrcDiaRow();
+  document.getElementById('orcDia').value = line
+    ? (Array.isArray(line.diaVencimento) ? line.diaVencimento.join(',') : (line.diaVencimento!=null ? line.diaVencimento : ''))
+    : '';
+  document.getElementById('orcParcMesIni').innerHTML = MESES_ORC.map(m=>`<option value="${m}">${monthLabel(m)}</option>`).join('');
+  document.getElementById('orcParcValor').value = '';
+  document.getElementById('orcParcQtd').value = '';
+  renderOrcMesesGrid(line);
+  document.getElementById('orcObs').value = line ? (line.observacao||'') : '';
+  document.getElementById('btnOrcExcluir').style.display = orcCreating ? 'none' : '';
+  document.getElementById('orcOverlay').style.display = 'flex';
+}
+function closeOrcEditor(){
+  document.getElementById('orcOverlay').style.display = 'none';
+  orcEditTargetId = null; orcCreating = false;
+}
+function excluirOrcLine(id){
+  const line = orcById(id);
+  if(!line) return;
+  const mesesComPagamento = MESES_ORC.filter(m=>Math.abs(realizadoForLine(line,m))>0.005);
+  if(mesesComPagamento.length===0){
+    if(!confirm(`Excluir o registro de orçamento "${catById(line.categoriaId).nome}"?`)) return;
+    state.orcamento = state.orcamento.filter(o=>o.id!==id);
+  } else {
+    if(!confirm(`Este registro já tem lançamento associado em ${mesesComPagamento.map(monthLabel).join(', ')} — esses meses não podem ser apagados (removeria histórico já pago). Remover só os meses ainda sem pagamento?`)) return;
+    MESES_ORC.forEach(m=>{ if(!mesesComPagamento.includes(m)) delete line.valores[m]; });
+  }
+  closeOrcEditor();
+  render();
+}
+function wireOrcEditorModal(){
+  document.getElementById('orcFrequencia').addEventListener('change', atualizarOrcDiaRow);
+  document.getElementById('btnOrcCancelar').addEventListener('click', closeOrcEditor);
+  document.getElementById('btnOrcPreencherParcelas').addEventListener('click', ()=>{
+    const valor = parseFloat(document.getElementById('orcParcValor').value);
+    const qtd = parseInt(document.getElementById('orcParcQtd').value);
+    const mesIni = document.getElementById('orcParcMesIni').value;
+    if(!valor || !qtd || qtd<1){ alert('Informe o valor da parcela e a quantidade de parcelas.'); return; }
+    const idxIni = MESES_ORC.indexOf(mesIni);
+    let preenchidos=0, travados=0, foraDoIntervalo=0;
+    for(let i=0;i<qtd;i++){
+      const idx = idxIni+i;
+      if(idx>=MESES_ORC.length){ foraDoIntervalo++; continue; }
+      const m = MESES_ORC[idx];
+      const input = document.querySelector(`[data-orc-mes="${m}"]`);
+      if(!input) continue;
+      if(input.disabled){ travados++; continue; }
+      input.value = valor;
+      preenchidos++;
+    }
+    let msg = `${preenchidos} mês(es) preenchido(s) com ${fmt(valor)}.`;
+    if(travados>0) msg += ` ${travados} mês(es) não alterado(s) por já ter lançamento associado.`;
+    if(foraDoIntervalo>0) msg += ` ${foraDoIntervalo} parcela(s) ficariam depois de ${monthLabel(MESES_ORC[MESES_ORC.length-1])} (fora do período coberto pelo orçamento) e não foram preenchidas.`;
+    alert(msg);
+  });
+  document.getElementById('btnOrcSalvar').addEventListener('click', ()=>{
+    const categoriaId = document.getElementById('orcCategoria').value;
+    if(!categoriaId){ alert('Escolha uma categoria.'); return; }
+    const freq = document.getElementById('orcFrequencia').value;
+    const diaRaw = document.getElementById('orcDia').value.trim();
+    let diaVencimento, frequencia;
+    if(freq==='mensal'){
+      const dia = parseInt(diaRaw);
+      if(!dia || dia<1 || dia>31){ alert('Informe um dia de vencimento válido (1-31).'); return; }
+      diaVencimento = dia; frequencia = undefined;
+    } else if(freq==='multi'){
+      const dias = diaRaw.split(',').map(s=>parseInt(s.trim())).filter(d=>d>=1 && d<=31);
+      if(dias.length===0){ alert('Informe pelo menos 1 dia válido, separados por vírgula.'); return; }
+      diaVencimento = dias; frequencia = 'multi';
+    } else {
+      diaVencimento = null; frequencia = freq; // 'semanal' ou 'diario'
+    }
+    const line = orcCreating ? null : orcById(orcEditTargetId);
+    const valores = {};
+    document.querySelectorAll('[data-orc-mes]').forEach(inp=>{
+      const m = inp.dataset.orcMes;
+      if(inp.disabled){
+        if(line && line.valores[m]!==undefined) valores[m] = line.valores[m]; // preserva valor já travado (tem lançamento)
+        return;
+      }
+      if(inp.value!=='' && inp.value!==null) valores[m] = Math.round(parseFloat(inp.value)*100)/100;
+    });
+    const observacao = document.getElementById('orcObs').value;
+    if(orcCreating){
+      state.orcamento.push({id: orcUid(), categoriaId, diaVencimento, frequencia, valores, observacao});
+    } else if(line){
+      line.categoriaId = categoriaId; line.diaVencimento = diaVencimento; line.frequencia = frequencia;
+      line.valores = valores; line.observacao = observacao;
+    }
+    closeOrcEditor();
+    render();
+  });
+  document.getElementById('btnOrcExcluir').addEventListener('click', ()=>{
+    if(orcEditTargetId!=null) excluirOrcLine(orcEditTargetId);
+  });
+}
+wireOrcEditorModal();
+
 // ===================== Em Aberto =====================
+let abertoMonth = null;
 function viewAberto(){
   const {month: curMonth} = todayInfo();
+  if(!abertoMonth) abertoMonth = curMonth;
+  const refMonth = abertoMonth;
   const rows = state.orcamento.map(line=>{
-    const status = statusForLine(line, curMonth);
-    return {line, cat: catById(line.categoriaId), orcado: line.valores[curMonth], status};
+    const status = statusForLine(line, refMonth);
+    return {line, cat: catById(line.categoriaId), orcado: line.valores[refMonth], status};
   }).filter(r=> r.status.pill==='late' || r.status.pill==='warn');
   const atrasados = rows.filter(r=>r.status.pill==='late').sort((a,b)=>(b.orcado||0)-(a.orcado||0));
   const aVencer = rows.filter(r=>r.status.pill==='warn').sort((a,b)=>(b.orcado||0)-(a.orcado||0));
   const totalAtrasado = atrasados.reduce((s,r)=>s+(r.orcado||0),0);
   const totalAVencer = aVencer.reduce((s,r)=>s+(r.orcado||0),0);
 
-  // faturas de cartão em aberto — cada valor sinaliza a qual vencimento pertence
+  // faturas de cartão em aberto do mês selecionado — cada valor sinaliza a qual vencimento pertence
   const invoiceTotals = {};
   state.lancamentos.filter(l=>l.origemTipo==='cartao' && l.fatura).forEach(l=>{
     const key = l.origemId+'|'+l.fatura;
     invoiceTotals[key] = (invoiceTotals[key]||0) + l.valor;
   });
-  const hoje = dataBase();
   const faturasAbertas = Object.entries(invoiceTotals).map(([key,total])=>{
     const [cardId, mes] = key.split('|');
     return {cardId, mes, total, vdate: cardVencDate(cardId, mes)};
-  }).filter(f=> f.total < -0.005 && (!f.vdate || f.vdate >= hoje))
+  }).filter(f=> f.total < -0.005 && f.mes===refMonth)
     .sort((a,b)=> (a.vdate||'9999') < (b.vdate||'9999') ? -1 : 1);
   const totalFaturasAbertas = faturasAbertas.reduce((s,f)=>s+Math.abs(f.total),0);
 
@@ -4377,15 +4602,18 @@ function viewAberto(){
 
   return `
     <div class="topbar">
-      <div><h1>Em Aberto</h1><div class="sub">Itens do orçamento de ${monthLabel(curMonth)} sem lançamento correspondente ainda</div></div>
+      <div><h1>Em Aberto</h1><div class="sub">Itens do orçamento de ${monthLabel(refMonth)} sem lançamento correspondente ainda${refMonth < curMonth ? ' — mês já encerrado: use pra conferir se algum pagamento passou batido' : ''}</div></div>
+    </div>
+    <div class="monthtabs" id="abertoMonthTabs">
+      ${MESES_ORC.map(m=>`<button data-m="${m}" class="${m===refMonth?'active':''}">${monthLabel(m)}</button>`).join('')}
     </div>
     <div class="tiles">
-      <div class="tile"><div class="label">⚠ Atrasado (venceu e não foi localizado)</div><div class="value neg">${fmt(totalAtrasado)}</div></div>
+      <div class="tile"><div class="label">⚠ Atrasado / não localizado</div><div class="value neg">${fmt(totalAtrasado)}</div></div>
       <div class="tile"><div class="label">A vencer (ainda dentro do mês)</div><div class="value">${fmt(totalAVencer)}</div></div>
       <div class="tile"><div class="label">Faturas de cartão em aberto</div><div class="value neg">${fmt(totalFaturasAbertas)}</div></div>
     </div>
     <div class="card">
-      <h2>⚠ Atrasados</h2>
+      <h2>⚠ Atrasados / não localizados</h2>
       ${tableFor(atrasados)}
     </div>
     <div class="card">
@@ -4393,8 +4621,8 @@ function viewAberto(){
       ${tableFor(aVencer)}
     </div>
     <div class="card">
-      <h2>💳 Faturas de cartão em aberto <small>cada valor sinaliza a data de vencimento a que pertence</small></h2>
-      ${faturasAbertas.length===0 ? '<div class="empty">Nenhuma fatura em aberto 🎉</div>' : `
+      <h2>💳 Faturas de cartão em aberto <small>referentes a ${monthLabel(refMonth)}</small></h2>
+      ${faturasAbertas.length===0 ? '<div class="empty">Nenhuma fatura em aberto nesse mês 🎉</div>' : `
       <div class="tblwrap"><table><thead><tr><th>Cartão</th><th>Fatura</th><th>Vencimento</th><th style="text-align:right">Valor devido</th></tr></thead><tbody>
         ${faturasAbertas.map(f=>`<tr>
           <td>${(cardById(f.cardId)||{}).name||f.cardId}</td>
@@ -4406,6 +4634,11 @@ function viewAberto(){
     </div>
     <div class="footprint">Baseado na data de referência ${fmtDate(dataBase())} — ajustável em versões futuras do app</div>
   `;
+}
+function wireAberto(){
+  document.querySelectorAll('#abertoMonthTabs button').forEach(b=>{
+    b.addEventListener('click', ()=>{ abertoMonth = b.dataset.m; render(); });
+  });
 }
 
 // ===================== Fluxo de Caixa dia a dia =====================
@@ -4770,6 +5003,13 @@ function extratoBodyHTML(accId, filtros){
   const dentroPeriodo = (l) => (!filtros.de || l.data>=filtros.de) && (!filtros.ate || l.data<=filtros.ate);
   const idxPrimeiro = comSaldo.findIndex(l=>dentroPeriodo(l));
   const saldoInicioPeriodo = idxPrimeiro<=0 ? saldoInicialGlobal : comSaldo[idxPrimeiro-1].saldo;
+  // Quando o filtro de data começa antes (ou exatamente) do 1º lançamento JÁ REGISTRADO da conta,
+  // não existe nenhum lançamento real pra ancorar esse "saldo no início" — o número viria de
+  // extrapolar o saldo pra antes de qualquer registro, o que não faz sentido (a conta certamente já
+  // existia e tinha movimentação antes disso, só não está lançada). Nesse caso, avisamos que não dá
+  // pra estimar, em vez de mostrar um valor sem fundamento.
+  const filtroDataAtivo = !!(filtros.de || filtros.ate);
+  const saldoInicioIndisponivel = filtroDataAtivo && idxPrimeiro<=0;
 
   const listPeriodo = comSaldo.filter(dentroPeriodo);
   const entradasPeriodo = Math.round(listPeriodo.reduce((s,l)=>s+Math.max(l.valor,0),0)*100)/100;
@@ -4782,7 +5022,7 @@ function extratoBodyHTML(accId, filtros){
 
   return `
     <div class="tiles">
-      <div class="tile"><div class="label">Saldo estimado no início do período</div><div class="value">${fmt(saldoInicioPeriodo)}</div></div>
+      <div class="tile"><div class="label">Saldo estimado no início do período</div><div class="value" ${saldoInicioIndisponivel?'style="font-size:14px;"':''}>${saldoInicioIndisponivel ? 'Indisponível <span style="font-weight:400;font-size:11px;display:block;color:var(--text-muted);">sem lançamentos registrados antes desta data</span>' : fmt(saldoInicioPeriodo)}</div></div>
       <div class="tile"><div class="label">Saldo atual (${fmtDate(acc.dataExtrato)})</div><div class="value">${fmt(acc.saldoAtual)}</div></div>
       <div class="tile"><div class="label">Entradas no período</div><div class="value pos">${fmt(entradasPeriodo)}</div></div>
       <div class="tile"><div class="label">Saídas no período</div><div class="value neg">${fmt(-saidasPeriodo)}</div></div>
@@ -4801,7 +5041,7 @@ function extratoBodyHTML(accId, filtros){
           <td>${categoriaCellHTML(l)}</td>
           <td>${competenciaCellHTML(l)}</td>
           <td style="text-align:right" class="${l.valor>=0?'val-pos':'val-neg'}">${fmt(l.valor)}</td>
-          <td style="text-align:right">${fmt(l.saldo)}</td>
+          <td style="text-align:right">${fmt(l.saldo)}${l.id===comSaldo[0].id ? `<div class="sub" style="font-size:10.5px; font-weight:400; margin-top:2px;">1º lançamento registrado nesta conta — saldo calculado de trás pra frente a partir do saldo atual (${fmt(acc.saldoAtual)}) e das transações depois desta data, sem supor nada sobre antes dela</div>` : ''}</td>
           <td><button class="btn danger" style="padding:4px 9px; font-size:11.5px" data-del-lanc="${l.id}">Excluir</button></td>
         </tr>`).join('')}
         </tbody>
