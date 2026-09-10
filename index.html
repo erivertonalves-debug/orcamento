@@ -131,6 +131,13 @@ tr:hover td{background:var(--surface-2);}
 .filterrow{display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end;}
 .filterrow > div{min-width:130px;}
 .filterrow label{display:block; font-size:11px; color:var(--text-muted); margin-bottom:3px;}
+.msel{position:relative; display:inline-block;}
+.mselbtn{width:100%; text-align:left; padding:7px 10px; border-radius:8px; border:1px solid var(--border); background:var(--surface-2); color:var(--text-primary); font-size:12.5px; cursor:pointer; white-space:nowrap;}
+.mselbtn b{font-weight:600;}
+.mseldrop{position:absolute; top:calc(100% + 4px); left:0; z-index:50; min-width:220px; max-height:260px; overflow-y:auto; background:var(--surface-1); border:1px solid var(--border); border-radius:8px; box-shadow:0 6px 18px rgba(0,0,0,.15); padding:6px;}
+.mseloptrow{display:flex; align-items:center; gap:7px; padding:5px 7px; font-size:12.5px; border-radius:5px; cursor:pointer; white-space:nowrap;}
+.mseloptrow:hover{background:var(--surface-2);}
+.mseloptrow input{margin:0;}
 .linklike{background:none; border:none; padding:0; margin:0; font:inherit; color:inherit; font-weight:600; cursor:pointer; text-decoration:underline dotted; text-underline-offset:3px;}
 .linklike:hover{color:var(--s1);}
 .pill.over{background:rgba(235,104,52,.16); color:var(--s2);}
@@ -235,12 +242,17 @@ select.inlinesel{font-size:12px; padding:4px 6px; border-radius:6px; border:1px 
   .vbarcol .vbar-val{font-size:10.5px;}
   .vbarcol .vbar-lbl{font-size:10.5px;}
   .catmgr-row{grid-template-columns:1fr 1fr 66px 50px; font-size:12.5px;}
+  .catmgr-row input, .catmgr-row select{min-width:0; width:100%; box-sizing:border-box;}
   .filters{gap:6px;}
   .filters select, .filters input{flex:1 1 140px; min-width:0;}
   .tblwrap{overflow-x:auto; -webkit-overflow-scrolling:touch; margin:0 -14px; padding:0 14px;}
   .tblwrap table{width:max-content; min-width:100%;}
   .tblwrap th, .tblwrap td{white-space:nowrap;}
   .tblwrap td textarea.obsbox{white-space:normal; min-width:160px;}
+  /* Dropdown de filtro (seleção múltipla) vira uma folha fixa no rodapé no mobile — evita
+     que ele estoure a largura da tela dependendo de onde o botão que o abre está posicionado. */
+  .msel{position:static;}
+  .mseldrop{position:fixed; left:10px; right:10px; top:auto; bottom:10px; width:auto; min-width:0; max-width:none; max-height:55vh;}
 }
 @media(max-width:420px){
   .lockbox{padding:26px 20px;}
@@ -276,6 +288,7 @@ select.inlinesel{font-size:12px; padding:4px 6px; border-radius:6px; border:1px 
     <button class="navbtn" data-tab="faturas"><span class="ic">💳</span>Faturas por cartão</button>
     <button class="navbtn" data-tab="extratos"><span class="ic">🏦</span>Extratos por conta</button>
     <button class="navbtn" data-tab="emprestimos"><span class="ic">🤝</span>Empréstimos</button>
+    <button class="navbtn" data-tab="cadastro"><span class="ic">⚙️</span>Cadastro</button>
     <div class="sidebar-foot">
       <div class="syncbox" id="syncBox">
         <button class="smallbtn" id="btnConnectDrive">🔗 Conectar Google Drive</button>
@@ -302,6 +315,22 @@ select.inlinesel{font-size:12px; padding:4px 6px; border-radius:6px; border:1px 
       <button class="btn" id="btnRateioSalvar" type="button">Salvar rateio</button>
       <button class="btn secondary" id="btnRateioRemover" type="button">Remover rateio</button>
       <button class="btn secondary" id="btnRateioCancelar" type="button">Cancelar</button>
+    </div>
+  </div>
+</div>
+<div class="modal-overlay" id="faturaLinkOverlay" style="display:none;">
+  <div class="modal-box">
+    <h3>🔗 Vincular pagamento a uma fatura de cartão</h3>
+    <div class="sub" id="faturaLinkInfo" style="margin-bottom:12px;"></div>
+    <div class="sub" style="margin-bottom:10px;">Isso diz ao app "este pagamento quita a fatura X de tal mês" — a fatura some de "Em Aberto" quando o total vinculado cobrir o valor dela.</div>
+    <div class="formrow" style="grid-template-columns:1fr 1fr;">
+      <div><label>Cartão</label><select id="faturaLinkCard"></select></div>
+      <div><label>Fatura (mês)</label><select id="faturaLinkMes"></select></div>
+    </div>
+    <div style="display:flex; gap:10px; margin-top:16px; flex-wrap:wrap;">
+      <button class="btn" id="btnFaturaLinkSalvar" type="button">Salvar vínculo</button>
+      <button class="btn secondary" id="btnFaturaLinkRemover" type="button">Remover vínculo</button>
+      <button class="btn secondary" id="btnFaturaLinkCancelar" type="button">Cancelar</button>
     </div>
   </div>
 </div>
@@ -3191,7 +3220,21 @@ function ensureDefaults(){
     state.categories.push({id:'sys_emprestimo', nome:'Empréstimo concedido', grupo:'Empréstimos concedidos', tipo:'transferencia'});
   }
   if(!Array.isArray(state.emprestimos)) state.emprestimos = [];
+  if(!Array.isArray(state.mesesFechados)) state.mesesFechados = [];
   (state.cards||[]).forEach(c=>{ if(c.diaVencimento===undefined) c.diaVencimento = null; });
+}
+
+// ===================== Fechamento de mês =====================
+// Mês de um lançamento (o mesmo critério usado em toda a parte de "realizado" do app):
+// fatura pra cartão, data pra conta.
+function lancMonth(l){ return l.origemTipo==='cartao' ? l.fatura : l.data.slice(0,7); }
+function mesFechado(month){ return !!(month && state.mesesFechados.includes(month)); }
+// Chamado nos pontos de escrita (criar/editar/excluir lançamento). Se o mês estiver
+// fechado, avisa e devolve true (chamador deve abortar a operação).
+function bloquearSeFechado(month, acao){
+  if(!mesFechado(month)) return false;
+  alert(`${monthLabel(month)} está fechado — reabra em "Cadastro" antes de ${acao||'alterar dados desse mês'}.`);
+  return true;
 }
 
 const fmt = (v) => (v<0?'-':'') + 'R$ ' + Math.abs(v).toLocaleString('pt-BR',{minimumFractionDigits:2, maximumFractionDigits:2});
@@ -3222,6 +3265,97 @@ function cardVencDate(cardId, faturaMes){
   const dia = Math.min(card.diaVencimento, dim);
   return `${faturaMes}-${String(dia).padStart(2,'0')}`;
 }
+
+// ===================== Pagamento de fatura de cartão (vínculo manual) =====================
+// Itens (compras) de uma fatura específica de um cartão.
+function invoiceItemsForCard(cardId, mes){
+  return state.lancamentos.filter(l=>l.origemTipo==='cartao' && l.origemId===cardId && l.fatura===mes);
+}
+// Total devido de uma fatura (débitos - créditos dentro do ciclo), mesma regra usada em faturaBodyHTML.
+function invoiceTotalForCard(cardId, mes){
+  const list = invoiceItemsForCard(cardId, mes);
+  if(!list.length) return 0;
+  const total = list.reduce((s,l)=>s+Math.abs(Math.min(l.valor,0)),0);
+  const creditos = list.reduce((s,l)=>s+Math.max(l.valor,0),0);
+  return Math.round((total-creditos)*100)/100;
+}
+// Soma de pagamentos (lançamentos de CONTA) vinculados manualmente a essa fatura.
+function pagamentosVinculados(cardId, mes){
+  return Math.round(state.lancamentos
+    .filter(l=>l.origemTipo==='conta' && l.pagaFaturaCardId===cardId && l.pagaFaturaMes===mes)
+    .reduce((s,l)=>s+Math.abs(l.valor),0) * 100) / 100;
+}
+// Status de pagamento de uma fatura: 'paga' (some de Em Aberto), 'parcial' (pagamento vinculado
+// mas não cobre tudo) ou 'aberta' (nenhum vínculo ainda). Faturas com total <=0 (ex: só créditos)
+// contam como 'paga' — não há dívida.
+function faturaStatusPagamento(cardId, mes){
+  const total = invoiceTotalForCard(cardId, mes);
+  if(total<=0.005) return {status:'paga', total, pago:0, restante:0};
+  const pago = pagamentosVinculados(cardId, mes);
+  const restante = Math.round((total-pago)*100)/100;
+  if(restante<=0.01) return {status:'paga', total, pago, restante:0};
+  if(pago>0.005) return {status:'parcial', total, pago, restante};
+  return {status:'aberta', total, pago:0, restante:total};
+}
+// Todos os meses de fatura que já existiram pra um cartão (pra popular o seletor do vínculo).
+function invoiceMonthsForCard(cardId){
+  return [...new Set(state.lancamentos.filter(l=>l.origemTipo==='cartao' && l.origemId===cardId).map(l=>l.fatura))].sort();
+}
+let faturaLinkTargetId = null;
+function openFaturaLinkEditor(id){
+  const l = state.lancamentos.find(x=>x.id===id);
+  if(!l) return;
+  if(bloquearSeFechado(lancMonth(l), 'vincular esse pagamento a uma fatura')) return;
+  faturaLinkTargetId = id;
+  document.getElementById('faturaLinkInfo').textContent = `${fmtDate(l.data)} · ${l.descricao} · ${fmt(l.valor)}`;
+  const selCard = document.getElementById('faturaLinkCard');
+  selCard.innerHTML = `<option value="">— não é pagamento de fatura —</option>` + state.cards.map(c=>`<option value="${c.id}" ${c.id===l.pagaFaturaCardId?'selected':''}>${c.name}</option>`).join('');
+  atualizarFaturaLinkMeses();
+  if(l.pagaFaturaMes) document.getElementById('faturaLinkMes').value = l.pagaFaturaMes;
+  document.getElementById('faturaLinkOverlay').style.display = 'flex';
+}
+function atualizarFaturaLinkMeses(){
+  const cardId = document.getElementById('faturaLinkCard').value;
+  const selMes = document.getElementById('faturaLinkMes');
+  if(!cardId){ selMes.innerHTML = ''; selMes.disabled = true; return; }
+  selMes.disabled = false;
+  const meses = invoiceMonthsForCard(cardId);
+  selMes.innerHTML = meses.map(m=>{
+    const pag = faturaStatusPagamento(cardId, m);
+    const tagStatus = pag.status==='paga' ? ' (já paga)' : pag.status==='parcial' ? ` (parcial, falta ${fmt(pag.restante)})` : '';
+    return `<option value="${m}">${monthLabel(m)} · fatura ${fmt(pag.total)}${tagStatus}</option>`;
+  }).join('');
+}
+function closeFaturaLinkEditor(){
+  document.getElementById('faturaLinkOverlay').style.display = 'none';
+  faturaLinkTargetId = null;
+}
+function wireFaturaLinkModal(){
+  document.getElementById('faturaLinkCard').addEventListener('change', atualizarFaturaLinkMeses);
+  document.getElementById('btnFaturaLinkCancelar').addEventListener('click', closeFaturaLinkEditor);
+  document.getElementById('btnFaturaLinkRemover').addEventListener('click', ()=>{
+    const l = state.lancamentos.find(x=>x.id===faturaLinkTargetId);
+    if(l){ delete l.pagaFaturaCardId; delete l.pagaFaturaMes; }
+    closeFaturaLinkEditor();
+    render();
+  });
+  document.getElementById('btnFaturaLinkSalvar').addEventListener('click', ()=>{
+    const l = state.lancamentos.find(x=>x.id===faturaLinkTargetId);
+    if(!l) return;
+    const cardId = document.getElementById('faturaLinkCard').value;
+    const mes = document.getElementById('faturaLinkMes').value;
+    if(!cardId || !mes){ delete l.pagaFaturaCardId; delete l.pagaFaturaMes; }
+    else { l.pagaFaturaCardId = cardId; l.pagaFaturaMes = mes; }
+    closeFaturaLinkEditor();
+    render();
+  });
+}
+wireFaturaLinkModal();
+// Fecha qualquer dropdown de filtro (seleção múltipla) aberto ao clicar fora dele — 1 listener
+// global (delegado), funciona em qualquer tela já que os dropdowns são recriados a cada render().
+document.addEventListener('click', (e)=>{
+  if(!e.target.closest('.msel')){ mselOpenKey = null; document.querySelectorAll('.mseldrop').forEach(d=>{ d.hidden = true; }); }
+});
 
 const SLOTS = ['--s1','--s2','--s3','--s4','--s5','--s6','--s7','--s8'];
 function cssVar(name){ return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
@@ -3597,6 +3731,7 @@ function render(){
   else if(currentTab==='faturas'){ main.innerHTML = viewFaturas(); render_faturaFor(state.cards[0].id); }
   else if(currentTab==='extratos'){ main.innerHTML = viewExtratos(); wireExtratoFiltros(); render_extratoFor(state.accounts[0].id); }
   else if(currentTab==='emprestimos'){ main.innerHTML = viewEmprestimos(); wireEmprestimos(); }
+  else if(currentTab==='cadastro'){ main.innerHTML = viewCadastro(); wireCadastro(); }
   wireCommon();
 }
 
@@ -3801,7 +3936,6 @@ function categoriaDonutChart(entries, total){
 // ===================== Lançamentos =====================
 function viewLancamentos(){
   const cats = state.categories;
-  const catsGerenciaveis = cats.filter(c=>!c.id.startsWith('sys_'));
   const msg = flashMsg;
   flashMsg = null; // mostra só uma vez, na renderização logo depois de salvar
   return `
@@ -3856,28 +3990,7 @@ function viewLancamentos(){
       </form>
     </div>
     <div class="card">
-      <details>
-        <summary style="cursor:pointer; font-size:13px; color:var(--s1); font-weight:600;">⚙️ Gerenciar categorias (renomear, mudar grupo, criar novas)</summary>
-        <div class="catmgr" id="catMgr">
-          <div class="catmgr-row" style="font-size:11px; color:var(--text-muted); font-weight:600;"><div>Nome</div><div>Grupo</div><div>Tipo</div><div></div></div>
-          ${catsGerenciaveis.map(c=>`
-            <div class="catmgr-row">
-              <input type="text" data-cat-nome="${c.id}" value="${c.nome}">
-              <input type="text" data-cat-grupo="${c.id}" value="${c.grupo}">
-              <select data-cat-tipo="${c.id}">
-                <option value="despesa" ${c.tipo==='despesa'?'selected':''}>Despesa</option>
-                <option value="receita" ${c.tipo==='receita'?'selected':''}>Receita</option>
-              </select>
-              <button class="btn danger" style="padding:4px 8px; font-size:11px" data-cat-del="${c.id}">Excluir</button>
-            </div>`).join('')}
-          <div class="catmgr-row" style="margin-top:10px; border-top:1px solid var(--border); padding-top:10px;">
-            <input type="text" id="novaCatNome" placeholder="Nova categoria...">
-            <input type="text" id="novaCatGrupo" placeholder="Grupo...">
-            <select id="novaCatTipo"><option value="despesa">Despesa</option><option value="receita">Receita</option></select>
-            <button class="btn secondary" id="btnAddCat">+ Adicionar</button>
-          </div>
-        </div>
-      </details>
+      <div class="sub">⚙️ O gerenciador de categorias (renomear, mudar grupo, criar novas) mudou de lugar — agora fica em <button type="button" class="linklike" data-goto-cadastro>Cadastro</button>.</div>
     </div>
   `;
 }
@@ -4025,6 +4138,7 @@ function wireLancamentos(){
     const fatura = origemTipo==='cartao' ? data.slice(0,7) : null;
     const competencia = fd.get('competencia') || (fatura || data.slice(0,7));
     const totalParcelas = origemTipo==='cartao' ? Math.max(1, parseInt(fd.get('parcelas'))||1) : 1;
+    if(bloquearSeFechado(fatura || data.slice(0,7), 'lançar algo novo')) return;
     const descricaoBase = fd.get('descricao');
     const item = {
       id: uid(),
@@ -4057,6 +4171,8 @@ function wireLancamentos(){
     const fd = new FormData(e.target);
     const deId = fd.get('deId'), paraId = fd.get('paraId');
     const valor = parseFloat(fd.get('valor'));
+    const mesTransfer = fd.get('data').slice(0,7);
+    if(bloquearSeFechado(mesTransfer, 'lançar uma transferência')) return;
     if(deId===paraId){ alert('Escolha contas diferentes em "De" e "Para".'); return; }
     if(!valor || valor<=0){ alert('Informe um valor de transferência maior que zero.'); return; }
     transferir({data: fd.get('data'), deId, paraId, valor, descricao: fd.get('descricao')});
@@ -4064,7 +4180,8 @@ function wireLancamentos(){
     e.target.reset();
     render();
   });
-  wireCatMgr();
+  const btnGotoCadastro = document.querySelector('[data-goto-cadastro]');
+  if(btnGotoCadastro) btnGotoCadastro.addEventListener('click', ()=>{ currentTab='cadastro'; document.querySelectorAll('.navbtn').forEach(b=>b.classList.toggle('active', b.dataset.tab==='cadastro')); render(); });
 }
 
 function wireCatMgr(){
@@ -4105,12 +4222,103 @@ function wireCatMgr(){
     render();
   });
 }
+
+// ===================== Cadastro (vencimento de cartões, categorias, fechamento de mês) =====================
+function viewCadastro(){
+  const catsGerenciaveis = state.categories.filter(c=>!c.id.startsWith('sys_'));
+  const mesesFechadosOrdenados = [...state.mesesFechados].sort().reverse();
+  return `
+    <div class="topbar">
+      <div><h1>Cadastro</h1><div class="sub">Configurações do app: vencimento dos cartões, categorias e fechamento de mês</div></div>
+    </div>
+    <div class="card">
+      <h2>🔒 Fechar/reabrir mês</h2>
+      <div class="sub" style="margin:-4px 0 12px;">Um mês fechado não deixa mais lançar, editar categoria/competência/rateio nem excluir lançamentos datados (conta) ou faturados (cartão) naquele mês — em nenhuma tela. Pra reabrir, digite o mês exatamente como aparece no rótulo (ex: "${monthLabel(todayInfo().month)}").</div>
+      <div class="formrow" style="grid-template-columns:1fr auto;">
+        <div><label>Mês</label><input type="month" id="inpFecharMes" value="${todayInfo().month}"></div>
+        <div><button class="btn" type="button" id="btnFecharMes">🔒 Fechar este mês</button></div>
+      </div>
+      ${mesesFechadosOrdenados.length ? `
+      <div class="sub" style="margin-top:14px; margin-bottom:6px;">Meses fechados:</div>
+      <div class="tblwrap"><table><thead><tr><th>Mês</th><th>Digite pra confirmar</th><th></th></tr></thead><tbody>
+        ${mesesFechadosOrdenados.map(m=>`<tr>
+          <td><span class="pill late">🔒 ${monthLabel(m)}</span></td>
+          <td><input type="text" class="inlinesel" style="max-width:140px" data-reabrir-input="${m}" placeholder="ex: ${monthLabel(m)}"></td>
+          <td><button class="btn secondary" type="button" data-reabrir-btn="${m}">🔓 Reabrir</button></td>
+        </tr>`).join('')}
+      </tbody></table></div>` : `<div class="sub" style="margin-top:10px;">Nenhum mês fechado ainda.</div>`}
+    </div>
+    <div class="card">
+      <h2>💳 Vencimento dos cartões</h2>
+      <div class="sub" style="margin:-4px 0 12px;">Usado pra projetar a fatura no Fluxo de Caixa e sinalizar o vencimento em Em Aberto.</div>
+      <div class="tblwrap"><table><thead><tr><th>Cartão</th><th>Dia de vencimento (1-31)</th></tr></thead><tbody>
+        ${state.cards.map(c=>`<tr>
+          <td>${c.name}</td>
+          <td><input type="number" min="1" max="31" step="1" style="max-width:100px" data-venc-dia="${c.id}" value="${c.diaVencimento||''}" placeholder="ex: 10"></td>
+        </tr>`).join('')}
+      </tbody></table></div>
+    </div>
+    <div class="card">
+      <h2>🏷️ Categorias</h2>
+      <div class="sub" style="margin:-4px 0 12px;">Renomeie, mude o grupo/tipo ou crie novas categorias.</div>
+      <div class="catmgr" id="catMgr">
+        <div class="catmgr-row" style="font-size:11px; color:var(--text-muted); font-weight:600;"><div>Nome</div><div>Grupo</div><div>Tipo</div><div></div></div>
+        ${catsGerenciaveis.map(c=>`
+          <div class="catmgr-row">
+            <input type="text" data-cat-nome="${c.id}" value="${c.nome}">
+            <input type="text" data-cat-grupo="${c.id}" value="${c.grupo}">
+            <select data-cat-tipo="${c.id}">
+              <option value="despesa" ${c.tipo==='despesa'?'selected':''}>Despesa</option>
+              <option value="receita" ${c.tipo==='receita'?'selected':''}>Receita</option>
+            </select>
+            <button class="btn danger" style="padding:4px 8px; font-size:11px" data-cat-del="${c.id}">Excluir</button>
+          </div>`).join('')}
+        <div class="catmgr-row" style="margin-top:10px; border-top:1px solid var(--border); padding-top:10px;">
+          <input type="text" id="novaCatNome" placeholder="Nova categoria...">
+          <input type="text" id="novaCatGrupo" placeholder="Grupo...">
+          <select id="novaCatTipo"><option value="despesa">Despesa</option><option value="receita">Receita</option></select>
+          <button class="btn secondary" id="btnAddCat">+ Adicionar</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+function wireCadastro(){
+  document.getElementById('btnFecharMes').addEventListener('click', ()=>{
+    const m = document.getElementById('inpFecharMes').value;
+    if(!m){ alert('Escolha um mês.'); return; }
+    if(state.mesesFechados.includes(m)){ alert(`${monthLabel(m)} já está fechado.`); return; }
+    if(!confirm(`Fechar ${monthLabel(m)}? Não vai mais ser possível lançar, editar ou excluir lançamentos desse mês até você reabrir.`)) return;
+    state.mesesFechados.push(m);
+    render();
+  });
+  document.querySelectorAll('[data-reabrir-btn]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const m = btn.dataset.reabrirBtn;
+      const inp = document.querySelector(`[data-reabrir-input="${m}"]`);
+      const digitado = (inp.value||'').trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+      const esperado = monthLabel(m).toLowerCase();
+      if(digitado !== esperado){ alert(`Digite exatamente "${monthLabel(m)}" pra confirmar a reabertura.`); return; }
+      state.mesesFechados = state.mesesFechados.filter(x=>x!==m);
+      render();
+    });
+  });
+  document.querySelectorAll('[data-venc-dia]').forEach(inp=>{
+    inp.addEventListener('change', ()=>{
+      const card = cardById(inp.dataset.vencDia);
+      if(card){ const v = parseInt(inp.value); card.diaVencimento = (v>=1 && v<=31) ? v : null; render(); }
+    });
+  });
+  wireCatMgr();
+}
+
 // Exclui um lançamento (usado nas telas de Extratos e Faturas). Se ele fizer parte de uma
 // transferência entre contas, remove as duas pontas e desfaz o efeito em ambos os saldos.
 function excluirLancamento(id){
   const idx = state.lancamentos.findIndex(l=>l.id===id);
   if(idx<0) return;
   const l = state.lancamentos[idx];
+  if(bloquearSeFechado(lancMonth(l), 'excluir um lançamento')) return;
   if(l.grupoTransferId){
     if(!confirm('Esse lançamento faz parte de uma transferência entre contas. Excluir remove as duas pontas (saída e entrada). Continuar?')) return;
     state.lancamentos.filter(x=>x.grupoTransferId===l.grupoTransferId).forEach(x=>{
@@ -4135,18 +4343,32 @@ function excluirLancamento(id){
 // quando o lançamento tem uma única categoria, ou um resumo clicável quando está rateado
 // entre várias (clique abre o editor de rateio).
 function categoriaCellHTML(l){
+  const travado = mesFechado(lancMonth(l));
+  const cadeado = travado ? ` title="${monthLabel(lancMonth(l))} está fechado — reabra em Cadastro pra editar" disabled` : '';
+  const linkBadge = (l.origemTipo==='conta') ? faturaLinkBadgeHTML(l) : '';
   if(l.rateio && l.rateio.length>1){
     const resumo = l.rateio.map(p=>`${catById(p.categoriaId).nome}: ${fmt(p.valor)}`).join(' · ');
-    return `<span class="tag rateiotag" data-tip="${resumo}" data-rateio-edit="${l.id}">✂️ Rateio (${l.rateio.length})</span>`;
+    return `<span class="tag rateiotag" data-tip="${resumo}" data-rateio-edit="${l.id}">✂️ Rateio (${l.rateio.length})</span>${linkBadge}`;
   }
-  return `<div style="display:flex; gap:4px; align-items:center;">
-    <select class="inlinesel" data-editcat="${l.id}">${state.categories.map(c=>`<option value="${c.id}" ${c.id===l.categoriaId?'selected':''}>${c.grupo} — ${c.nome}</option>`).join('')}</select>
-    <button class="btn secondary" type="button" style="padding:3px 7px; font-size:11px;" data-rateio-edit="${l.id}" title="Ratear entre categorias">✂️</button>
+  return `<div style="display:flex; gap:4px; align-items:center; flex-wrap:wrap;">
+    <select class="inlinesel" data-editcat="${l.id}"${cadeado}>${state.categories.map(c=>`<option value="${c.id}" ${c.id===l.categoriaId?'selected':''}>${c.grupo} — ${c.nome}</option>`).join('')}</select>
+    <button class="btn secondary" type="button" style="padding:3px 7px; font-size:11px;" data-rateio-edit="${l.id}" title="Ratear entre categorias"${cadeado}>✂️</button>
+    ${linkBadge}
   </div>`;
+}
+// Badge/botão de vínculo "isso paga a fatura de X" — só faz sentido em lançamentos de CONTA
+// (o pagamento sai da conta pra quitar uma fatura de cartão).
+function faturaLinkBadgeHTML(l){
+  if(l.pagaFaturaCardId && l.pagaFaturaMes){
+    const card = cardById(l.pagaFaturaCardId);
+    return `<button type="button" class="tag" style="cursor:pointer; background:var(--surface-2);" data-link-fatura="${l.id}" title="Editar vínculo">🔗 ${card?card.name:l.pagaFaturaCardId} · ${monthLabel(l.pagaFaturaMes)}</button>`;
+  }
+  return `<button type="button" class="btn secondary" style="padding:3px 7px; font-size:11px;" data-link-fatura="${l.id}" title="Vincular este pagamento a uma fatura de cartão (pra ela sumir de 'Em Aberto')">🔗 fatura</button>`;
 }
 // Célula de competência (mês de referência), editável — pode ser diferente do vencimento/data.
 function competenciaCellHTML(l){
-  return `<input type="month" class="inlinesel" style="max-width:130px" data-editcompetencia="${l.id}" value="${competenciaOf(l)}">`;
+  const travado = mesFechado(lancMonth(l));
+  return `<input type="month" class="inlinesel" style="max-width:130px" data-editcompetencia="${l.id}" value="${competenciaOf(l)}"${travado?' disabled':''}>`;
 }
 // Liga os eventos das células de categoria/competência/exclusão para uma lista de linhas
 // já renderizadas na tela (Extratos ou Faturas).
@@ -4154,20 +4376,31 @@ function wireLinhasLancamento(container){
   container.querySelectorAll('[data-editcat]').forEach(sel=>{
     sel.addEventListener('change', ()=>{
       const l = state.lancamentos.find(x=>x.id===parseInt(sel.dataset.editcat));
-      if(l) l.categoriaId = sel.value;
+      if(!l) return;
+      if(bloquearSeFechado(lancMonth(l), 'mudar a categoria')){ render(); return; }
+      l.categoriaId = sel.value;
     });
   });
   container.querySelectorAll('[data-editcompetencia]').forEach(inp=>{
     inp.addEventListener('change', ()=>{
       const l = state.lancamentos.find(x=>x.id===parseInt(inp.dataset.editcompetencia));
-      if(l) l.competencia = inp.value;
+      if(!l) return;
+      if(bloquearSeFechado(lancMonth(l), 'mudar a competência')){ render(); return; }
+      l.competencia = inp.value;
     });
   });
   container.querySelectorAll('[data-rateio-edit]').forEach(el=>{
-    el.addEventListener('click', ()=> openRateioEditor(parseInt(el.dataset.rateioEdit)));
+    el.addEventListener('click', ()=>{
+      const l = state.lancamentos.find(x=>x.id===parseInt(el.dataset.rateioEdit));
+      if(l && bloquearSeFechado(lancMonth(l), 'ratear esse lançamento')) return;
+      openRateioEditor(parseInt(el.dataset.rateioEdit));
+    });
   });
   container.querySelectorAll('[data-del-lanc]').forEach(btn=>{
     btn.addEventListener('click', ()=> excluirLancamento(parseInt(btn.dataset.delLanc)));
+  });
+  container.querySelectorAll('[data-link-fatura]').forEach(btn=>{
+    btn.addEventListener('click', ()=> openFaturaLinkEditor(parseInt(btn.dataset.linkFatura)));
   });
 }
 
@@ -4224,6 +4457,7 @@ function wireRateioModal(){
   document.getElementById('btnRateioCancelar').addEventListener('click', closeRateioEditor);
   document.getElementById('btnRateioRemover').addEventListener('click', ()=>{
     const l = state.lancamentos.find(x=>x.id===rateioTargetId);
+    if(l && bloquearSeFechado(lancMonth(l), 'ratear esse lançamento')) return;
     if(l){ delete l.rateio; }
     closeRateioEditor();
     render();
@@ -4231,6 +4465,7 @@ function wireRateioModal(){
   document.getElementById('btnRateioSalvar').addEventListener('click', ()=>{
     const l = state.lancamentos.find(x=>x.id===rateioTargetId);
     if(!l) return;
+    if(bloquearSeFechado(lancMonth(l), 'ratear esse lançamento')) return;
     const rows = [...document.querySelectorAll('#rateioRows .rateiorow')];
     if(rows.length<2){ alert('Adicione pelo menos 2 categorias para ratear, ou use "Remover rateio".'); return; }
     if(!atualizarRateioTotal()){ alert('A soma das partes precisa bater com o valor total do lançamento antes de salvar.'); return; }
@@ -4263,9 +4498,9 @@ function drillDownItens(line, month){
     })
     .sort((a,b)=>a.data.localeCompare(b.data));
 }
-function openDrillDown(lineId, month){
-  const line = orcById(lineId);
-  if(!line) return;
+function openDrillDown(lineId, month, categoriaIdVirtual){
+  const line = lineId ? orcById(lineId) : {id:null, categoriaId:categoriaIdVirtual, valores:{}, diaVencimento:null, observacao:''};
+  if(!line || !line.categoriaId) return;
   const cat = catById(line.categoriaId);
   const itens = drillDownItens(line, month);
   const total = Math.round(itens.reduce((s,i)=>s+i.valor,0)*100)/100;
@@ -4293,20 +4528,64 @@ wireDrillModal();
 
 // ===================== Orçado x Realizado =====================
 let orcMonth = null;
-let orcFiltroGrupo = '';
-let orcFiltroCategoria = '';
-let orcFiltroStatus = '';
+let orcFiltroGrupos = [];
+let orcFiltroCategorias = [];
+let orcFiltroStatuses = [];
 const ORC_STATUS_LABELS = {plan:'Planejado / sem dado', good:'Pago/recebido - confere', over:'Pago acima do orçado', warn:'A vencer', late:'Atrasado / não localizado'};
+// Componente genérico de dropdown com checkboxes (seleção múltipla). "options" é [{value,label}];
+// vazio em "selected" = "Todos". Fica aberto entre cliques nos checkboxes (mesmo passando por um
+// render() inteiro, pra dar pra marcar várias opções seguidas) e fecha sozinho ao clicar fora
+// (listener global registrado 1x, ver embaixo) — controlado por "mselOpenKey" (só 1 aberto por vez).
+let mselOpenKey = null;
+function multiSelectHTML(key, label, options, selected){
+  const labelTxt = selected.length===0 ? 'Todos' : (selected.length===1 ? (options.find(o=>o.value===selected[0])||{}).label||selected[0] : `${selected.length} selecionados`);
+  const aberto = mselOpenKey===key;
+  return `<div class="msel">
+    <button type="button" class="mselbtn" data-msel-toggle="${key}">${label}: <b>${labelTxt}</b> ▾</button>
+    <div class="mseldrop" data-msel-drop="${key}" ${aberto?'':'hidden'}>
+      ${options.length===0 ? '<div class="sub" style="padding:6px 10px;">Nada pra filtrar</div>' : options.map(o=>`<label class="mseloptrow"><input type="checkbox" data-msel="${key}" value="${o.value}" ${selected.includes(o.value)?'checked':''}> ${o.label}</label>`).join('')}
+    </div>
+  </div>`;
+}
+function wireMultiSelectFilter(key, onChange){
+  document.querySelectorAll('[data-msel-toggle]').forEach(btn=>{
+    btn.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      const k = btn.dataset.mselToggle;
+      mselOpenKey = (mselOpenKey===k) ? null : k;
+      document.querySelectorAll('.mseldrop').forEach(d=>{ d.hidden = (d.dataset.mselDrop!==mselOpenKey); });
+    });
+  });
+  document.querySelectorAll(`[data-msel="${key}"]`).forEach(cb=>{
+    cb.addEventListener('change', ()=>{
+      const checked = [...document.querySelectorAll(`[data-msel="${key}"]:checked`)].map(c=>c.value);
+      onChange(checked);
+      render();
+    });
+  });
+}
 function viewOrcado(){
   if(!orcMonth) orcMonth = todayInfo().month;
   const cats = state.categories;
   const lines = state.orcamento;
-  const allRows = lines.map(line=>{
+  const linhasRows = lines.map(line=>{
     const orcado = line.valores[orcMonth];
     const real = realizadoForLine(line, orcMonth);
     const status = statusForLine(line, orcMonth);
     return {line, cat: catById(line.categoriaId), orcado, real, status};
-  }).sort((a,b)=> a.cat.grupo.localeCompare(b.cat.grupo) || a.cat.nome.localeCompare(b.cat.nome));
+  });
+  // Categorias com lançamento neste mês mas SEM nenhuma linha de orçamento (nunca foram
+  // orçadas) — entram como linha "virtual" pra nada ficar de fora de Orçado x Realizado.
+  const categoriasComLinha = new Set(state.orcamento.map(o=>o.categoriaId));
+  const virtualRows = state.categories
+    .filter(c=>!c.id.startsWith('sys_') && !categoriasComLinha.has(c.id))
+    .map(cat=>{
+      const synthLine = {id:null, categoriaId:cat.id, valores:{}, diaVencimento:null, frequencia:undefined, observacao:''};
+      const real = realizadoForLine(synthLine, orcMonth);
+      if(Math.abs(real)<=0.005) return null;
+      return {line:null, cat, orcado:undefined, real, status: statusForLine(synthLine, orcMonth)};
+    }).filter(Boolean);
+  const allRows = linhasRows.concat(virtualRows).sort((a,b)=> a.cat.grupo.localeCompare(b.cat.grupo) || a.cat.nome.localeCompare(b.cat.nome));
 
   const totalOrcReceita = allRows.filter(r=>r.cat.tipo==='receita').reduce((s,r)=>s+(r.orcado||0),0);
   const totalRealReceita = allRows.filter(r=>r.cat.tipo==='receita').reduce((s,r)=>s+r.real,0);
@@ -4315,13 +4594,13 @@ function viewOrcado(){
 
   // filtros (não afetam as tiles acima — essas continuam sempre com o total do mês inteiro)
   const grupos = [...new Set(state.categories.map(c=>c.grupo))].sort();
-  const categoriasDoGrupo = state.categories.filter(c=>!c.id.startsWith('sys_') && (!orcFiltroGrupo || c.grupo===orcFiltroGrupo)).sort((a,b)=>a.nome.localeCompare(b.nome));
+  const categoriasDoGrupo = state.categories.filter(c=>!c.id.startsWith('sys_') && (orcFiltroGrupos.length===0 || orcFiltroGrupos.includes(c.grupo))).sort((a,b)=>a.nome.localeCompare(b.nome));
   const rows = allRows.filter(r=>
-    (!orcFiltroGrupo || r.cat.grupo===orcFiltroGrupo) &&
-    (!orcFiltroCategoria || r.cat.id===orcFiltroCategoria) &&
-    (!orcFiltroStatus || r.status.pill===orcFiltroStatus)
+    (orcFiltroGrupos.length===0 || orcFiltroGrupos.includes(r.cat.grupo)) &&
+    (orcFiltroCategorias.length===0 || orcFiltroCategorias.includes(r.cat.id)) &&
+    (orcFiltroStatuses.length===0 || orcFiltroStatuses.includes(r.status.pill))
   );
-  const filtroAtivo = !!(orcFiltroGrupo || orcFiltroCategoria || orcFiltroStatus);
+  const filtroAtivo = !!(orcFiltroGrupos.length || orcFiltroCategorias.length || orcFiltroStatuses.length);
 
   return `
     <div class="topbar">
@@ -4332,9 +4611,9 @@ function viewOrcado(){
     </div>
     <div style="display:flex; justify-content:space-between; align-items:flex-end; gap:12px; flex-wrap:wrap; margin:-6px 0 16px;">
       <div class="filterrow">
-        <div><label>Grupo</label><select id="orcFiltroGrupo"><option value="">Todos</option>${grupos.map(g=>`<option value="${g}" ${g===orcFiltroGrupo?'selected':''}>${g}</option>`).join('')}</select></div>
-        <div><label>Categoria</label><select id="orcFiltroCategoria"><option value="">Todas</option>${categoriasDoGrupo.map(c=>`<option value="${c.id}" ${c.id===orcFiltroCategoria?'selected':''}>${c.nome}</option>`).join('')}</select></div>
-        <div><label>Status</label><select id="orcFiltroStatus"><option value="">Todos</option>${Object.entries(ORC_STATUS_LABELS).map(([v,l])=>`<option value="${v}" ${v===orcFiltroStatus?'selected':''}>${l}</option>`).join('')}</select></div>
+        <div>${multiSelectHTML('grupo', 'Grupo', grupos.map(g=>({value:g,label:g})), orcFiltroGrupos)}</div>
+        <div>${multiSelectHTML('categoria', 'Categoria', categoriasDoGrupo.map(c=>({value:c.id,label:c.nome})), orcFiltroCategorias)}</div>
+        <div>${multiSelectHTML('status', 'Status', Object.entries(ORC_STATUS_LABELS).map(([v,l])=>({value:v,label:l})), orcFiltroStatuses)}</div>
         <div><button class="btn secondary" type="button" id="btnLimparFiltroOrc">Limpar filtro</button></div>
       </div>
       <div style="display:flex; gap:10px; flex-wrap:wrap;">
@@ -4358,20 +4637,23 @@ function viewOrcado(){
         </tr></thead>
         <tbody>
         ${rows.map(r=>{
-          const dia = diaLabel(r.line);
+          const virtual = !r.line;
+          const dia = virtual ? '—' : diaLabel(r.line);
           const diff = (r.orcado!==undefined) ? (Math.abs(r.real) - Math.abs(r.orcado)) * (r.cat.tipo==='receita'?1:1) : null;
-          return `<tr>
+          return `<tr${virtual?' style="opacity:.85;"':''}>
             <td>${r.cat.grupo}</td>
-            <td>${r.cat.nome}</td>
+            <td>${r.cat.nome}${virtual?' <span class="tag" title="Categoria com lançamento neste mês mas sem registro de orçamento">não orçado</span>':''}</td>
             <td><span class="daybadge">${dia}</span></td>
             <td style="text-align:right">${r.orcado!==undefined ? fmt(r.orcado) : '—'}</td>
-            <td style="text-align:right">${Math.abs(r.real)>0.005 ? `<button type="button" class="linklike" data-drill-line="${r.line.id}" data-drill-month="${orcMonth}" title="Ver de onde veio esse valor">${fmt(r.real)} 🔎</button>` : '—'}</td>
+            <td style="text-align:right">${Math.abs(r.real)>0.005 ? `<button type="button" class="linklike" data-drill-line="${virtual?'':r.line.id}" data-drill-month="${orcMonth}" ${virtual?`data-drill-cat="${r.cat.id}"`:''} title="Ver de onde veio esse valor">${fmt(r.real)} 🔎</button>` : '—'}</td>
             <td style="text-align:right">${diff!==null && Math.abs(r.real)>0.005 ? fmt(diff) : '—'}</td>
             <td><span class="pill ${r.status.pill}">${r.status.label}</span></td>
-            <td><textarea class="obsbox" rows="1" data-obs="${r.line.id}">${r.line.observacao||''}</textarea></td>
+            <td>${virtual ? '<span class="sub">sem registro de orçamento</span>' : `<textarea class="obsbox" rows="1" data-obs="${r.line.id}">${r.line.observacao||''}</textarea>`}</td>
             <td style="white-space:nowrap;">
-              <button class="btn secondary" type="button" style="padding:4px 8px; font-size:11.5px" data-orc-edit="${r.line.id}" title="Editar registro">✏️</button>
-              <button class="btn danger" type="button" style="padding:4px 8px; font-size:11.5px" data-orc-del="${r.line.id}" title="Excluir registro">🗑</button>
+              ${virtual
+                ? `<button class="btn secondary" type="button" style="padding:4px 8px; font-size:11.5px" data-orc-novo-cat="${r.cat.id}" title="Criar registro de orçamento pra essa categoria">+ Orçar</button>`
+                : `<button class="btn secondary" type="button" style="padding:4px 8px; font-size:11.5px" data-orc-edit="${r.line.id}" title="Editar registro">✏️</button>
+                   <button class="btn danger" type="button" style="padding:4px 8px; font-size:11.5px" data-orc-del="${r.line.id}" title="Excluir registro">🗑</button>`}
             </td>
           </tr>`;
         }).join('')}
@@ -4394,18 +4676,21 @@ function wireOrcado(){
   const btnCopiar = document.getElementById('btnCopiarMesAnt');
   if(btnCopiar) btnCopiar.addEventListener('click', copiarMesAnterior);
   document.querySelectorAll('[data-drill-line]').forEach(el=>{
-    el.addEventListener('click', ()=> openDrillDown(parseInt(el.dataset.drillLine), el.dataset.drillMonth));
+    el.addEventListener('click', ()=> openDrillDown(el.dataset.drillLine ? parseInt(el.dataset.drillLine) : null, el.dataset.drillMonth, el.dataset.drillCat));
   });
-  document.getElementById('orcFiltroGrupo').addEventListener('change', (e)=>{ orcFiltroGrupo = e.target.value; orcFiltroCategoria=''; render(); });
-  document.getElementById('orcFiltroCategoria').addEventListener('change', (e)=>{ orcFiltroCategoria = e.target.value; render(); });
-  document.getElementById('orcFiltroStatus').addEventListener('change', (e)=>{ orcFiltroStatus = e.target.value; render(); });
-  document.getElementById('btnLimparFiltroOrc').addEventListener('click', ()=>{ orcFiltroGrupo=''; orcFiltroCategoria=''; orcFiltroStatus=''; render(); });
+  wireMultiSelectFilter('grupo', v=>{ orcFiltroGrupos=v; orcFiltroCategorias=[]; });
+  wireMultiSelectFilter('categoria', v=>{ orcFiltroCategorias=v; });
+  wireMultiSelectFilter('status', v=>{ orcFiltroStatuses=v; });
+  document.getElementById('btnLimparFiltroOrc').addEventListener('click', ()=>{ orcFiltroGrupos=[]; orcFiltroCategorias=[]; orcFiltroStatuses=[]; render(); });
   document.getElementById('btnOrcNovo').addEventListener('click', ()=> openOrcEditor(null));
   document.querySelectorAll('[data-orc-edit]').forEach(btn=>{
     btn.addEventListener('click', ()=> openOrcEditor(parseInt(btn.dataset.orcEdit)));
   });
   document.querySelectorAll('[data-orc-del]').forEach(btn=>{
     btn.addEventListener('click', ()=> excluirOrcLine(parseInt(btn.dataset.orcDel)));
+  });
+  document.querySelectorAll('[data-orc-novo-cat]').forEach(btn=>{
+    btn.addEventListener('click', ()=> openOrcEditor(null, btn.dataset.orcNovoCat));
   });
 }
 
@@ -4468,14 +4753,14 @@ function renderOrcMesesGrid(line){
     </div>`;
   }).join('');
 }
-function openOrcEditor(lineId){
+function openOrcEditor(lineId, presetCategoriaId){
   orcCreating = (lineId===null || lineId===undefined);
   orcEditTargetId = orcCreating ? null : lineId;
   const line = orcCreating ? null : orcById(lineId);
   if(!orcCreating && !line) return;
   document.getElementById('orcModalTitle').textContent = orcCreating ? '+ Novo registro de orçamento' : '✏️ Editar registro de orçamento';
   document.getElementById('orcModalSub').textContent = orcCreating ? 'Categoria única, ou os N meses de um parcelamento.' : `${catById(line.categoriaId).grupo} — ${catById(line.categoriaId).nome}`;
-  document.getElementById('orcCategoria').innerHTML = orcCategoriaOptions(line ? line.categoriaId : null);
+  document.getElementById('orcCategoria').innerHTML = orcCategoriaOptions(line ? line.categoriaId : (presetCategoriaId||null));
   document.getElementById('orcFrequencia').value = line ? (line.frequencia || 'mensal') : 'mensal';
   atualizarOrcDiaRow();
   document.getElementById('orcDia').value = line
@@ -4590,18 +4875,17 @@ function viewAberto(){
   const totalAtrasado = atrasados.reduce((s,r)=>s+(r.orcado||0),0);
   const totalAVencer = aVencer.reduce((s,r)=>s+(r.orcado||0),0);
 
-  // faturas de cartão em aberto do mês selecionado — cada valor sinaliza a qual vencimento pertence
-  const invoiceTotals = {};
-  state.lancamentos.filter(l=>l.origemTipo==='cartao' && l.fatura).forEach(l=>{
-    const key = l.origemId+'|'+l.fatura;
-    invoiceTotals[key] = (invoiceTotals[key]||0) + l.valor;
-  });
-  const faturasAbertas = Object.entries(invoiceTotals).map(([key,total])=>{
+  // faturas de cartão em aberto do mês selecionado — só entram as que ainda não foram quitadas
+  // por um pagamento vinculado no extrato (ver "🔗 fatura" nos lançamentos de conta).
+  const chavesFatura = new Set();
+  state.lancamentos.filter(l=>l.origemTipo==='cartao' && l.fatura).forEach(l=> chavesFatura.add(l.origemId+'|'+l.fatura));
+  const faturasAbertas = [...chavesFatura].map(key=>{
     const [cardId, mes] = key.split('|');
-    return {cardId, mes, total, vdate: cardVencDate(cardId, mes)};
-  }).filter(f=> f.total < -0.005 && f.mes===refMonth)
+    const pag = faturaStatusPagamento(cardId, mes);
+    return {cardId, mes, vdate: cardVencDate(cardId, mes), pag};
+  }).filter(f=> f.mes===refMonth && f.pag.status!=='paga')
     .sort((a,b)=> (a.vdate||'9999') < (b.vdate||'9999') ? -1 : 1);
-  const totalFaturasAbertas = faturasAbertas.reduce((s,f)=>s+Math.abs(f.total),0);
+  const totalFaturasAbertas = faturasAbertas.reduce((s,f)=>s+f.pag.restante,0);
 
   function tableFor(list){
     if(list.length===0) return '<div class="empty">Nada aqui 🎉</div>';
@@ -4637,13 +4921,15 @@ function viewAberto(){
     </div>
     <div class="card">
       <h2>💳 Faturas de cartão em aberto <small>referentes a ${monthLabel(refMonth)}</small></h2>
+      <div class="sub" style="margin:-4px 0 10px;">Some daqui quando você vincular um pagamento do extrato a essa fatura (botão "🔗 fatura" no lançamento) cobrindo o valor total.</div>
       ${faturasAbertas.length===0 ? '<div class="empty">Nenhuma fatura em aberto nesse mês 🎉</div>' : `
-      <div class="tblwrap"><table><thead><tr><th>Cartão</th><th>Fatura</th><th>Vencimento</th><th style="text-align:right">Valor devido</th></tr></thead><tbody>
+      <div class="tblwrap"><table><thead><tr><th>Cartão</th><th>Fatura</th><th>Vencimento</th><th>Status</th><th style="text-align:right">Valor devido</th></tr></thead><tbody>
         ${faturasAbertas.map(f=>`<tr>
           <td>${(cardById(f.cardId)||{}).name||f.cardId}</td>
           <td>${monthLabel(f.mes)}</td>
           <td>${f.vdate ? `<span class="daybadge">${fmtDate(f.vdate)}</span>` : '<span class="sub">sem dia de vencimento cadastrado</span>'}</td>
-          <td style="text-align:right" class="val-neg">${fmt(Math.abs(f.total))}</td>
+          <td>${f.pag.status==='parcial' ? `<span class="pill warn">Parcial (pago ${fmt(f.pag.pago)})</span>` : '<span class="pill late">Em aberto</span>'}</td>
+          <td style="text-align:right" class="val-neg">${fmt(f.pag.restante)}</td>
         </tr>`).join('')}
       </tbody></table></div>`}
     </div>
@@ -4861,12 +5147,8 @@ function viewFaturas(){
 function render_faturaFor(cardId){
   const el = document.getElementById('faturaBody');
   el.innerHTML = faturaBodyHTML(cardId || state.cards[0].id);
-  el.querySelectorAll('[data-venc-dia]').forEach(inp=>{
-    inp.addEventListener('change', ()=>{
-      const card = cardById(inp.dataset.vencDia);
-      if(card){ const v = parseInt(inp.value); card.diaVencimento = (v>=1 && v<=31) ? v : null; render(); render_faturaFor(cardId); }
-    });
-  });
+  const btnGoto = el.querySelector('[data-goto-cadastro]');
+  if(btnGoto) btnGoto.addEventListener('click', ()=>{ currentTab='cadastro'; document.querySelectorAll('.navbtn').forEach(b=>b.classList.toggle('active', b.dataset.tab==='cadastro')); render(); });
   wireLinhasLancamento(el);
 }
 function faturaBodyHTML(cardId){
@@ -4882,14 +5164,7 @@ function faturaBodyHTML(cardId){
   // faturas em exibição principal: da atual em diante (se o cartão não tiver nada atual/futuro, cai pra última existente)
   const invoices = futureMonths.length ? futureMonths : allMonths.slice(-1);
 
-  const vencBox = `
-    <div class="card">
-      <h2>Dia de vencimento da fatura</h2>
-      <div class="sub" style="margin:-4px 0 10px;">Cadastre aqui o dia do mês em que a fatura deste cartão vence — isso é usado para projetar a fatura no Fluxo de Caixa e sinalizar o vencimento em Em Aberto.</div>
-      <div class="formrow">
-        <div><label>Dia de vencimento (1-31)</label><input type="number" min="1" max="31" step="1" data-venc-dia="${cardId}" value="${card.diaVencimento||''}" placeholder="ex: 10"></div>
-      </div>
-    </div>`;
+  const vencBox = `<div class="sub" style="margin:-4px 0 14px;">Vencimento cadastrado: ${card.diaVencimento?`<b>dia ${card.diaVencimento}</b>`:'<span class="sub">não cadastrado</span>'} · <button type="button" class="linklike" data-goto-cadastro>editar em Cadastro</button></div>`;
 
   if(allMonths.length===0) return vencBox + `<div class="card"><div class="empty">Nenhuma fatura carregada para este cartão ainda.</div></div>`;
 
@@ -4921,8 +5196,10 @@ function faturaBodyHTML(cardId){
   function invoiceDetailsHTML(m, openByDefault){
     const list = byInvoice[m].slice().sort((a,b)=>a.data.localeCompare(b.data));
     const venc = cardVencDate(cardId, m);
+    const pag = faturaStatusPagamento(cardId, m);
+    const pagPill = pag.status==='paga' ? '<span class="pill good">✅ Paga</span>' : pag.status==='parcial' ? `<span class="pill warn">🟡 Parcial — falta ${fmt(pag.restante)}</span>` : '';
     return `<details class="invoice" ${openByDefault?'open':''}>
-      <summary><span>${monthLabel(m)}${m===mesAtual?' · <b>atual</b>':''} ${venc?`· vencimento ${fmtDate(venc)}`:'· <span class="sub">sem dia de vencimento cadastrado</span>'}</span><span class="tot">${fmt(invoiceTotal(m))}</span></summary>
+      <summary><span>${monthLabel(m)}${m===mesAtual?' · <b>atual</b>':''} ${venc?`· vencimento ${fmtDate(venc)}`:'· <span class="sub">sem dia de vencimento cadastrado</span>'} ${pagPill}</span><span class="tot">${fmt(invoiceTotal(m))}</span></summary>
       <div class="body">
         <div class="tblwrap"><table><thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th><th>Competência</th><th style="text-align:right">Valor</th><th></th></tr></thead>
         <tbody>
@@ -4932,7 +5209,7 @@ function faturaBodyHTML(cardId){
           <td>${categoriaCellHTML(l)}</td>
           <td>${competenciaCellHTML(l)}</td>
           <td style="text-align:right" class="${l.valor>=0?'val-pos':'val-neg'}">${fmt(l.valor)}</td>
-          <td><button class="btn danger" style="padding:4px 9px; font-size:11.5px" data-del-lanc="${l.id}">Excluir</button></td>
+          <td><button class="btn danger" style="padding:4px 9px; font-size:11.5px" data-del-lanc="${l.id}"${mesFechado(lancMonth(l))?' disabled title="Mês fechado"':''}>Excluir</button></td>
         </tr>`).join('')}
         </tbody></table></div>
       </div>
@@ -5030,6 +5307,11 @@ function extratoBodyHTML(accId, filtros){
   const entradasPeriodo = Math.round(listPeriodo.reduce((s,l)=>s+Math.max(l.valor,0),0)*100)/100;
   const saidasPeriodo = Math.round(listPeriodo.reduce((s,l)=>s+Math.max(-l.valor,0),0)*100)/100;
   const netPeriodo = Math.round((entradasPeriodo-saidasPeriodo)*100)/100;
+  // Saldo no FINAL do período filtrado (não "hoje") — o saldo (running) logo depois do último
+  // lançamento que cai dentro do filtro de data. Sem filtro de data, isso bate com o saldo atual
+  // real da conta (o último lançamento é o mais recente já registrado).
+  const saldoFinalPeriodo = listPeriodo.length ? listPeriodo[listPeriodo.length-1].saldo : saldoInicioPeriodo;
+  const dataFinalPeriodo = listPeriodo.length ? listPeriodo[listPeriodo.length-1].data : (filtros.ate || acc.dataExtrato);
 
   const passaTipo = (l) => filtros.tipo==='entrada' ? l.valor>=0 : (filtros.tipo==='saida' ? l.valor<0 : true);
   const rows = listPeriodo.filter(passaTipo);
@@ -5037,10 +5319,10 @@ function extratoBodyHTML(accId, filtros){
 
   return `
     <div class="tiles">
-      <div class="tile"><div class="label">Saldo estimado no início do período</div><div class="value" ${saldoInicioIndisponivel?'style="font-size:14px;"':''}>${saldoInicioIndisponivel ? 'Indisponível <span style="font-weight:400;font-size:11px;display:block;color:var(--text-muted);">sem lançamentos registrados antes desta data</span>' : fmt(saldoInicioPeriodo)}</div></div>
-      <div class="tile"><div class="label">Saldo atual (${fmtDate(acc.dataExtrato)})</div><div class="value">${fmt(acc.saldoAtual)}</div></div>
+      <div class="tile"><div class="label">Saldo no início do período</div><div class="value" ${saldoInicioIndisponivel?'style="font-size:14px;"':''}>${saldoInicioIndisponivel ? 'Indisponível <span style="font-weight:400;font-size:11px;display:block;color:var(--text-muted);">sem lançamentos registrados antes desta data</span>' : fmt(saldoInicioPeriodo)}</div></div>
       <div class="tile"><div class="label">Entradas no período</div><div class="value pos">${fmt(entradasPeriodo)}</div></div>
       <div class="tile"><div class="label">Saídas no período</div><div class="value neg">${fmt(-saidasPeriodo)}</div></div>
+      <div class="tile"><div class="label">Saldo no final do período (${fmtDate(dataFinalPeriodo)})</div><div class="value">${fmt(saldoFinalPeriodo)}</div></div>
       <div class="tile"><div class="label">Movimentação líquida no período</div><div class="value ${netPeriodo>=0?'pos':'neg'}">${fmt(netPeriodo)}</div></div>
     </div>
     <div class="card">
@@ -5057,7 +5339,7 @@ function extratoBodyHTML(accId, filtros){
           <td>${competenciaCellHTML(l)}</td>
           <td style="text-align:right" class="${l.valor>=0?'val-pos':'val-neg'}">${fmt(l.valor)}</td>
           <td style="text-align:right">${fmt(l.saldo)}${l.id===comSaldo[0].id ? `<div class="sub" style="font-size:10.5px; font-weight:400; margin-top:2px;">1º lançamento registrado nesta conta — saldo calculado de trás pra frente a partir do saldo atual (${fmt(acc.saldoAtual)}) e das transações depois desta data, sem supor nada sobre antes dela</div>` : ''}</td>
-          <td><button class="btn danger" style="padding:4px 9px; font-size:11.5px" data-del-lanc="${l.id}">Excluir</button></td>
+          <td><button class="btn danger" style="padding:4px 9px; font-size:11.5px" data-del-lanc="${l.id}"${mesFechado(lancMonth(l))?' disabled title="Mês fechado"':''}>Excluir</button></td>
         </tr>`).join('')}
         </tbody>
       </table></div>`}
