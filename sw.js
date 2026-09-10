@@ -6,7 +6,7 @@
 // Isso força o navegador a jogar fora o cache antigo e buscar tudo de novo na rede
 // — sem isso, quem já tinha aberto o site antes fica preso numa versão antiga do
 // index.html mesmo depois de você subir um arquivo novo pro GitHub.
-const CACHE_NAME = 'orcamento-shell-v6';
+const CACHE_NAME = 'orcamento-shell-v7';
 const APP_SHELL = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', (event) => {

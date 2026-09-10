@@ -3589,7 +3589,7 @@ function render(){
   persistState();
   updateSidebarSummary();
   const main = document.getElementById('main');
-  if(currentTab==='dashboard') main.innerHTML = viewDashboard();
+  if(currentTab==='dashboard'){ main.innerHTML = viewDashboard(); wireDashboard(); }
   else if(currentTab==='lancamentos'){ main.innerHTML = viewLancamentos(); wireLancamentos(); }
   else if(currentTab==='orcado'){ main.innerHTML = viewOrcado(); wireOrcado(); }
   else if(currentTab==='aberto'){ main.innerHTML = viewAberto(); wireAberto(); }
@@ -3629,9 +3629,15 @@ function expandRateio(list){
   return out;
 }
 
+let dashMonth = null;
 function viewDashboard(){
   const months = availableMonths();
-  const month = months[months.length-1] || '2026-08';
+  // mês atual = o mês da data de referência do app (última data informada nos dados),
+  // NÃO o último mês que aparece em algum lançamento — isso incluiria faturas de
+  // parcelamentos futuros (ex: uma compra em 12x pode gerar fatura lá na frente) e
+  // fazia o "mês de referência" pular pra um mês sem sentido nenhum como mai/27.
+  const cur = todayInfo().month;
+  const month = (dashMonth && months.includes(dashMonth)) ? dashMonth : cur;
   const contaTx = expandRateio(state.lancamentos.filter(l=>l.origemTipo==='conta' && l.data.slice(0,7)===month));
   const receitas = contaTx.filter(l=>l.valor>0 && catById(l.categoriaId).tipo==='receita');
   const despesasConta = contaTx.filter(l=>l.valor<0 && catById(l.categoriaId).tipo!=='transferencia');
@@ -3687,9 +3693,12 @@ function viewDashboard(){
 
   return `
     <div class="topbar">
-      <div><h1>Dashboard</h1><div class="sub">Mês de referência: ${monthLabel(month)} · dados até ${SEED.accounts[0].dataExtrato ? fmtDate(SEED.accounts[0].dataExtrato) : ''}</div></div>
+      <div><h1>Dashboard</h1><div class="sub">Mês de referência: ${monthLabel(month)}${month===cur?' (atual)':''} · dados até ${fmtDate(dataBase())}</div></div>
     </div>
-    <div class="readme-box"><b>Como ler:</b> este painel usa os lançamentos de contas (extratos) e cartões (faturas) do mês selecionado. Itens sem correspondência no orçamento original ficam no grupo <b>"Outros (não orçado)"</b>.</div>
+    <div class="monthtabs" id="dashMonthTabs">
+      ${months.map(m=>`<button data-m="${m}" class="${m===month?'active':''}">${monthLabel(m)}${m===cur?' •':''}</button>`).join('')}
+    </div>
+    <div class="readme-box"><b>Como ler:</b> este painel usa os lançamentos de contas (extratos) e cartões (faturas) do mês selecionado. Itens sem correspondência no orçamento original ficam no grupo <b>"Outros (não orçado)"</b>. Ao abrir o app, o dashboard sempre volta pro mês atual — use as abas acima pra conferir como fechou algum mês específico.</div>
     <div class="tiles">
       <div class="tile"><div class="label">Receitas do mês</div><div class="value pos">${fmt(totalReceita)}</div></div>
       <div class="tile"><div class="label">Despesas do mês</div><div class="value neg">${fmt(totalDespesa)}</div></div>
@@ -3727,6 +3736,12 @@ function viewDashboard(){
     </div>
     <div class="footprint">Painel gerado a partir dos extratos/faturas fornecidos · valores parciais para meses em andamento</div>
   `;
+}
+
+function wireDashboard(){
+  document.querySelectorAll('#dashMonthTabs button').forEach(b=>{
+    b.addEventListener('click', ()=>{ dashMonth = b.dataset.m; render(); });
+  });
 }
 
 function monthLabel(m){
