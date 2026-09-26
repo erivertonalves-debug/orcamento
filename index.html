@@ -4347,22 +4347,33 @@ function excluirLancamento(id){
   render();
 }
 
+// Categoria usada pros lançamentos de conta que pagam uma fatura de cartão — o botão "🔗 fatura"
+// só faz sentido aparecer quando o lançamento está (ou pode ser) categorizado assim.
+const CAT_PAGAMENTO_FATURA = 'custom_pagamento_fatura_cart_o_mszy27c7';
 // Célula de categoria reutilizada nas tabelas de Extratos e Faturas: um <select> simples
 // quando o lançamento tem uma única categoria, ou um resumo clicável quando está rateado
 // entre várias (clique abre o editor de rateio).
 function categoriaCellHTML(l){
   const travado = mesFechado(lancMonth(l));
   const cadeado = travado ? ` title="${monthLabel(lancMonth(l))} está fechado — reabra em Cadastro pra editar" disabled` : '';
-  const linkBadge = (l.origemTipo==='conta') ? faturaLinkBadgeHTML(l) : '';
   if(l.rateio && l.rateio.length>1){
     const resumo = l.rateio.map(p=>`${catById(p.categoriaId).nome}: ${fmt(p.valor)}`).join(' · ');
-    return `<span class="tag rateiotag" data-tip="${resumo}" data-rateio-edit="${l.id}">✂️ Rateio (${l.rateio.length})</span>${linkBadge}`;
+    return `<span class="tag rateiotag" data-tip="${resumo}" data-rateio-edit="${l.id}">✂️ Rateio (${l.rateio.length})</span><span data-link-fatura-wrap="${l.id}">${faturaLinkWrapHTML(l)}</span>`;
   }
   return `<div style="display:flex; gap:4px; align-items:center; flex-wrap:wrap;">
     <select class="inlinesel" data-editcat="${l.id}"${cadeado}>${state.categories.map(c=>`<option value="${c.id}" ${c.id===l.categoriaId?'selected':''}>${c.grupo} — ${c.nome}</option>`).join('')}</select>
     <button class="btn secondary" type="button" style="padding:3px 7px; font-size:11px;" data-rateio-edit="${l.id}" title="Ratear entre categorias"${cadeado}>✂️</button>
-    ${linkBadge}
+    <span data-link-fatura-wrap="${l.id}">${faturaLinkWrapHTML(l)}</span>
   </div>`;
+}
+// Só mostra o badge/botão de vínculo de fatura quando faz sentido: lançamento de CONTA (o
+// pagamento sai da conta pra quitar uma fatura de cartão) categorizado como "Pagamento Fatura
+// Cartão" — ou que já tenha um vínculo salvo (nesse caso nunca esconde, mesmo que a categoria
+// tenha mudado depois, pra não "perder" um vínculo já feito sem o usuário perceber).
+function faturaLinkWrapHTML(l){
+  if(l.origemTipo!=='conta') return '';
+  if(l.categoriaId!==CAT_PAGAMENTO_FATURA && !(l.pagaFaturaCardId && l.pagaFaturaMes)) return '';
+  return faturaLinkBadgeHTML(l);
 }
 // Badge/botão de vínculo "isso paga a fatura de X" — só faz sentido em lançamentos de CONTA
 // (o pagamento sai da conta pra quitar uma fatura de cartão).
@@ -4372,6 +4383,17 @@ function faturaLinkBadgeHTML(l){
     return `<button type="button" class="tag" style="cursor:pointer; background:var(--surface-2);" data-link-fatura="${l.id}" title="Editar vínculo">🔗 ${card?card.name:l.pagaFaturaCardId} · ${monthLabel(l.pagaFaturaMes)}</button>`;
   }
   return `<button type="button" class="btn secondary" style="padding:3px 7px; font-size:11px;" data-link-fatura="${l.id}" title="Vincular este pagamento a uma fatura de cartão (pra ela sumir de 'Em Aberto')">🔗 fatura</button>`;
+}
+// Atualiza só o "wrapper" do botão de vínculo de fatura de um lançamento (sem re-renderizar a
+// tabela inteira) — chamado quando a categoria muda por um <select> inline, já que esses
+// handlers deliberadamente não disparam um render() completo (ver wireLinhasLancamento).
+function atualizarFaturaLinkWrap(l){
+  document.querySelectorAll(`[data-link-fatura-wrap="${l.id}"]`).forEach(wrap=>{
+    wrap.innerHTML = faturaLinkWrapHTML(l);
+    wrap.querySelectorAll('[data-link-fatura]').forEach(btn=>{
+      btn.addEventListener('click', ()=> openFaturaLinkEditor(parseInt(btn.dataset.linkFatura)));
+    });
+  });
 }
 // Célula de competência (mês de referência), editável — pode ser diferente do vencimento/data.
 function competenciaCellHTML(l){
@@ -4387,6 +4409,7 @@ function wireLinhasLancamento(container){
       if(!l) return;
       if(bloquearSeFechado(lancMonth(l), 'mudar a categoria')){ render(); return; }
       l.categoriaId = sel.value;
+      atualizarFaturaLinkWrap(l);
     });
   });
   container.querySelectorAll('[data-editcompetencia]').forEach(inp=>{
@@ -4530,9 +4553,10 @@ function closeDrillDown(){
   document.getElementById('drillOverlay').style.display = 'none';
 }
 // Drill-down de um dia do Fluxo de Caixa (reaproveita o mesmo modal de "De onde veio esse
-// valor"): mostra tudo que compõe entradas/saídas daquele dia, real ou projetado.
+// valor"): mostra tudo que compõe entradas/saídas daquele dia, real ou projetado. Respeita o
+// filtro de conta selecionado no momento (fluxoConta), pra bater com o que está na tela.
 function openDrillDownDia(dstr){
-  const row = computeDailyCashflow().find(r=>r.data===dstr);
+  const row = computeDailyCashflow(fluxoConta).find(r=>r.data===dstr);
   const itens = row ? row.items.slice().sort((a,b)=>b.valor-a.valor) : [];
   const entradas = itens.filter(i=>i.valor>0).reduce((s,i)=>s+i.valor,0);
   const saidas = itens.filter(i=>i.valor<0).reduce((s,i)=>s+Math.abs(i.valor),0);
@@ -4633,16 +4657,30 @@ function viewOrcado(){
   // agrupamento por Grupo (drill-down): todo grupo orçável que sobrar depois do filtro de Grupo
   // aparece, mesmo sem nenhum valor orçado/realizado neste mês — clique no grupo expande e
   // mostra as categorias de dentro.
+  // % Realizado sobre Orçado: sempre em valor absoluto (orçado é digitado como número positivo,
+  // real pode vir negativo pra despesa) — colore em vermelho quando é "ruim" (despesa estourou o
+  // orçado, ou receita ficou abaixo do orçado) e em verde caso contrário.
+  function pctRealizado(real, orcado){
+    if(orcado===undefined || orcado===null || Math.abs(orcado)<0.005) return null;
+    return (Math.abs(real)/Math.abs(orcado))*100;
+  }
+  function pctCellHTML(pct, tipo){
+    if(pct===null) return '<span class="sub">—</span>';
+    const ruim = tipo==='receita' ? pct < 99.5 : pct > 100.5;
+    return `<span class="${ruim?'val-neg':'val-pos'}">${pct.toFixed(0)}%</span>`;
+  }
   function linhaRowHTML(r){
     const virtual = !r.line;
     const dia = virtual ? '—' : diaLabel(r.line);
     const diff = (r.orcado!==undefined) ? (Math.abs(r.real) - Math.abs(r.orcado)) : null;
+    const pct = pctRealizado(r.real, r.orcado);
     return `<tr${virtual?' style="opacity:.85;"':''}>
       <td>${r.cat.nome}${virtual?' <span class="tag" title="Categoria com lançamento neste mês mas sem registro de orçamento">não orçado</span>':''}</td>
       <td><span class="daybadge">${dia}</span></td>
       <td style="text-align:right">${r.orcado!==undefined ? fmt(r.orcado) : '—'}</td>
       <td style="text-align:right">${Math.abs(r.real)>0.005 ? `<button type="button" class="linklike" data-drill-line="${virtual?'':r.line.id}" data-drill-month="${orcMonth}" ${virtual?`data-drill-cat="${r.cat.id}"`:''} title="Ver de onde veio esse valor">${fmt(r.real)} 🔎</button>` : '—'}</td>
       <td style="text-align:right">${diff!==null && Math.abs(r.real)>0.005 ? fmt(diff) : '—'}</td>
+      <td style="text-align:right">${pctCellHTML(pct, r.cat.tipo)}</td>
       <td><span class="pill ${r.status.pill}">${r.status.label}</span></td>
       <td>${virtual ? '<span class="sub">sem registro de orçamento</span>' : `<textarea class="obsbox" rows="1" data-obs="${r.line.id}">${r.line.observacao||''}</textarea>`}</td>
       <td style="white-space:nowrap;">
@@ -4660,7 +4698,11 @@ function viewOrcado(){
     const orcadoGrupo = catRows.reduce((s,r)=>s+(r.orcado||0),0);
     const realGrupo = catRows.reduce((s,r)=>s+r.real,0);
     const temAlgumaCoisa = catRows.some(r=>r.orcado!==undefined || Math.abs(r.real)>0.005);
-    return {grupo, catRows, orcadoGrupo, realGrupo, temAlgumaCoisa};
+    // tipo dominante do grupo (a maioria das categorias dentro dele) — só pra decidir a cor do %
+    const nReceita = catRows.filter(r=>r.cat.tipo==='receita').length;
+    const tipoDominante = nReceita > catRows.length/2 ? 'receita' : 'despesa';
+    const pctGrupo = pctRealizado(realGrupo, orcadoGrupo);
+    return {grupo, catRows, orcadoGrupo, realGrupo, temAlgumaCoisa, pctGrupo, tipoDominante};
   }).filter(Boolean);
 
   return `
@@ -4690,16 +4732,17 @@ function viewOrcado(){
     </div>
     <div class="card">
       ${grupoBlocks.length===0 ? `<div class="empty">Nenhum registro encontrado com esses filtros.</div>` : grupoBlocks.map(gb=>`
-      <details class="invoice" ${gb.temAlgumaCoisa?'open':''}>
+      <details class="invoice">
         <summary>
           <span>${gb.grupo} <span class="sub">(${gb.catRows.length} categoria${gb.catRows.length>1?'s':''})</span></span>
-          <span class="tot">Orçado ${fmt(gb.orcadoGrupo)} · Realizado ${fmt(gb.realGrupo)}</span>
+          <span class="tot">Orçado ${fmt(gb.orcadoGrupo)} · Realizado ${fmt(gb.realGrupo)} · ${pctCellHTML(gb.pctGrupo, gb.tipoDominante)}</span>
         </summary>
         <div class="body">
           <div class="tblwrap"><table>
             <thead><tr>
               <th>Categoria</th><th>Dia venc.</th>
               <th style="text-align:right">Orçado</th><th style="text-align:right">Realizado</th><th style="text-align:right">Diferença</th>
+              <th style="text-align:right">% Realizado</th>
               <th>Status</th><th style="min-width:220px">Observação</th><th></th>
             </tr></thead>
             <tbody>${gb.catRows.map(linhaRowHTML).join('')}</tbody>
@@ -4990,56 +5033,66 @@ function wireAberto(){
 }
 
 // ===================== Fluxo de Caixa dia a dia =====================
-function computeDailyCashflow(){
-  const contaTx = state.lancamentos.filter(l=>l.origemTipo==='conta');
+// accountId: opcional — quando informado, restringe tudo àquela conta específica. Nesse caso:
+// (1) transferências entre contas próprias PASSAM a contar como movimento (elas mudam o saldo
+//     daquela conta isoladamente, mesmo não mudando o total combinado); e
+// (2) não projetamos nada pro futuro (nem orçamento, nem fatura de cartão em aberto), porque
+//     essas projeções não têm uma conta associada até serem de fato pagas — só o que já foi
+//     realizado naquela conta aparece.
+function computeDailyCashflow(accountId){
+  const contaTxTodas = state.lancamentos.filter(l=>l.origemTipo==='conta');
+  const contaTx = accountId ? contaTxTodas.filter(l=>l.origemId===accountId) : contaTxTodas;
   if(contaTx.length===0) return [];
   const minDate = contaTx.reduce((m,l)=>l.data<m?l.data:m, contaTx[0].data);
   const start = minDate < '2026-08-01' ? minDate : '2026-08-01';
   const end = '2026-12-31';
   const hoje = dataBase();
 
-  // agrupa reais por dia (transferências entre contas próprias não contam como entrada/saída,
-  // pois não alteram o total combinado das contas — só aparecem no extrato de cada conta)
+  // agrupa reais por dia (na visão combinada, transferências entre contas próprias não contam
+  // como entrada/saída, pois não alteram o total combinado das contas — só aparecem no extrato
+  // de cada conta; numa conta específica elas contam normalmente, ver comentário acima)
   const realByDay = {};
   contaTx.forEach(l=>{
     rateioOf(l).forEach(p=>{
-      if(catById(p.categoriaId).tipo==='transferencia') return;
+      if(!accountId && catById(p.categoriaId).tipo==='transferencia') return;
       (realByDay[l.data] = realByDay[l.data]||[]).push({descricao:l.descricao, valor:p.valor});
     });
   });
 
-  // agrupa projeções por dia (linhas de orçamento, apenas dias > hoje)
+  // agrupa projeções por dia (linhas de orçamento, apenas dias > hoje) — só na visão combinada
   const projByDay = {};
-  state.orcamento.forEach(line=>{
-    MESES_ORC.forEach(month=>{
-      occurrencesForLine(line, month).forEach(occ=>{
-        const dstr = `${month}-${String(occ.dia).padStart(2,'0')}`;
-        if(dstr <= hoje) return; // só projeta o futuro
-        const cat = catById(line.categoriaId);
-        const sinal = cat.tipo==='receita' ? 1 : -1;
-        (projByDay[dstr] = projByDay[dstr]||[]).push({descricao: cat.nome, valor: occ.valor*sinal, categoriaId: line.categoriaId});
+  if(!accountId){
+    state.orcamento.forEach(line=>{
+      MESES_ORC.forEach(month=>{
+        occurrencesForLine(line, month).forEach(occ=>{
+          const dstr = `${month}-${String(occ.dia).padStart(2,'0')}`;
+          if(dstr <= hoje) return; // só projeta o futuro
+          const cat = catById(line.categoriaId);
+          const sinal = cat.tipo==='receita' ? 1 : -1;
+          (projByDay[dstr] = projByDay[dstr]||[]).push({descricao: cat.nome, valor: occ.valor*sinal, categoriaId: line.categoriaId});
+        });
       });
     });
-  });
 
-  // projeta faturas de cartão em aberto (com base no dia de vencimento cadastrado no
-  // cartão) como uma saída única no fluxo, na data de vencimento — soma do que já
-  // está lançado naquela fatura até agora.
-  const invoiceTotals = {};
-  state.lancamentos.filter(l=>l.origemTipo==='cartao' && l.fatura).forEach(l=>{
-    const key = l.origemId+'|'+l.fatura;
-    invoiceTotals[key] = (invoiceTotals[key]||0) + l.valor;
-  });
-  Object.entries(invoiceTotals).forEach(([key, total])=>{
-    const [cardId, mes] = key.split('|');
-    const vdate = cardVencDate(cardId, mes);
-    if(!vdate || vdate <= hoje) return; // só projeta faturas com vencimento futuro
-    if(total >= -0.005) return; // fatura sem saldo devedor (só créditos/estornos)
-    const card = cardById(cardId);
-    (projByDay[vdate] = projByDay[vdate]||[]).push({descricao: `Fatura ${card ? card.name : cardId} (${monthLabel(mes)})`, valor: total});
-  });
+    // projeta faturas de cartão em aberto (com base no dia de vencimento cadastrado no
+    // cartão) como uma saída única no fluxo, na data de vencimento — soma do que já
+    // está lançado naquela fatura até agora.
+    const invoiceTotals = {};
+    state.lancamentos.filter(l=>l.origemTipo==='cartao' && l.fatura).forEach(l=>{
+      const key = l.origemId+'|'+l.fatura;
+      invoiceTotals[key] = (invoiceTotals[key]||0) + l.valor;
+    });
+    Object.entries(invoiceTotals).forEach(([key, total])=>{
+      const [cardId, mes] = key.split('|');
+      const vdate = cardVencDate(cardId, mes);
+      if(!vdate || vdate <= hoje) return; // só projeta faturas com vencimento futuro
+      if(total >= -0.005) return; // fatura sem saldo devedor (só créditos/estornos)
+      const card = cardById(cardId);
+      (projByDay[vdate] = projByDay[vdate]||[]).push({descricao: `Fatura ${card ? card.name : cardId} (${monthLabel(mes)})`, valor: total});
+    });
+  }
 
-  const saldoHojeContas = state.accounts.reduce((s,a)=>s+a.saldoAtual,0);
+  const saldoHojeContas = accountId ? (accById(accountId)?.saldoAtual || 0) : state.accounts.reduce((s,a)=>s+a.saldoAtual,0);
   const realNetTotal = contaTx.reduce((s,l)=>s+l.valor,0);
   let saldo = Math.round((saldoHojeContas - realNetTotal)*100)/100; // saldo estimado no início do período carregado
 
@@ -5068,6 +5121,7 @@ function computeDailyCashflow(){
 
 let fluxoMonth = null;
 let fluxoView = 'lista';
+let fluxoConta = null; // null = todas as contas combinadas; ou o id de uma conta específica
 // Formata valor pro quadro sintético (dias em coluna) sem o prefixo "R$" — economiza espaço
 // horizontal já que o mês inteiro (até 31 dias) precisa caber em colunas lado a lado.
 const fmtCompacto = (v) => (v<0?'-':'') + Math.abs(v).toLocaleString('pt-BR',{minimumFractionDigits:2, maximumFractionDigits:2});
@@ -5100,29 +5154,96 @@ function fluxoSinteticoTable(rows){
     </tbody>
   </table></div>`;
 }
+// Quadro mês a mês (mesmo formato do sintético, mas com os MESES do orçamento nas colunas em
+// vez dos dias de um mês só) — dá a visão panorâmica pedida; clicar num mês pula pra ele no
+// detalhe abaixo (mesma lista de meses do módulo Orçado x Realizado).
+function fluxoMesAMesTable(all){
+  const meses = MESES_ORC.map(m=>{
+    const rowsMes = all.filter(r=>r.data.slice(0,7)===m);
+    if(rowsMes.length===0) return {mes:m, vazio:true};
+    return {
+      mes: m, vazio:false,
+      saldoInicial: rowsMes[0].saldoInicial,
+      entradas: rowsMes.reduce((s,r)=>s+r.entradas,0),
+      saidas: rowsMes.reduce((s,r)=>s+r.saidas,0),
+      saldoFinal: rowsMes[rowsMes.length-1].saldoFinal,
+    };
+  });
+  return `<div class="fluxosint-scroll"><table class="fluxosint">
+    <thead><tr>
+      <th class="fluxosint-rowlabel">Mês</th>
+      ${meses.map(m=>`<th style="text-align:right;">${m.vazio
+        ? `<span class="sub">${monthLabel(m.mes)}</span>`
+        : `<button type="button" class="linklike" data-mesamesjump="${m.mes}" title="Ver o detalhe deste mês">${monthLabel(m.mes)}</button>`}${m.mes===fluxoMonth?'<div class="sub" style="font-size:9.5px;">selecionado</div>':''}</th>`).join('')}
+    </tr></thead>
+    <tbody>
+      <tr>
+        <td class="fluxosint-rowlabel">Saldo inicial</td>
+        ${meses.map(m=>`<td style="text-align:right">${m.vazio?'—':fmtCompacto(m.saldoInicial)}</td>`).join('')}
+      </tr>
+      <tr>
+        <td class="fluxosint-rowlabel">Receitas</td>
+        ${meses.map(m=>`<td style="text-align:right" class="${!m.vazio&&m.entradas>0?'val-pos':''}">${m.vazio?'—':(m.entradas>0?fmtCompacto(m.entradas):'—')}</td>`).join('')}
+      </tr>
+      <tr>
+        <td class="fluxosint-rowlabel">Despesas</td>
+        ${meses.map(m=>`<td style="text-align:right" class="${!m.vazio&&m.saidas>0?'val-neg':''}">${m.vazio?'—':(m.saidas>0?fmtCompacto(-m.saidas):'—')}</td>`).join('')}
+      </tr>
+      <tr>
+        <td class="fluxosint-rowlabel" style="font-weight:600;">Saldo final</td>
+        ${meses.map(m=>`<td style="text-align:right; font-weight:600;">${m.vazio?'—':fmtCompacto(m.saldoFinal)}</td>`).join('')}
+      </tr>
+    </tbody>
+  </table></div>`;
+}
 function viewFluxo(){
   if(!fluxoMonth) fluxoMonth = todayInfo().month;
-  const all = computeDailyCashflow();
+  const contaSelecionada = fluxoConta ? accById(fluxoConta) : null;
+  const all = computeDailyCashflow(fluxoConta);
   const rows = all.filter(r=>r.data.slice(0,7)===fluxoMonth);
-  if(rows.length===0) return `<div class="topbar"><h1>Fluxo de Caixa</h1></div><div class="card"><div class="empty">Sem dados para este mês ainda.</div></div>`;
-  const saldoInicioMes = rows[0].saldoInicial;
-  const saldoFimMes = rows[rows.length-1].saldoFinal;
+  const seletorConta = `<select class="inlinesel" id="fluxoContaSel" style="max-width:220px;">
+    <option value="">Todas as contas</option>
+    ${state.accounts.map(a=>`<option value="${a.id}" ${fluxoConta===a.id?'selected':''}>${a.name}</option>`).join('')}
+  </select>`;
+
+  if(all.length===0){
+    return `
+      <div class="topbar">
+        <div><h1>Fluxo de Caixa</h1><div class="sub">Saldo dia a dia e mês a mês, por conta ou combinado</div></div>
+      </div>
+      <div style="margin:-6px 0 16px;">${seletorConta}</div>
+      <div class="card"><div class="empty">${contaSelecionada ? `Sem lançamentos ainda em ${contaSelecionada.name}.` : 'Sem dados ainda.'}</div></div>
+    `;
+  }
+
+  const saldoInicioMes = rows.length ? rows[0].saldoInicial : null;
+  const saldoFimMes = rows.length ? rows[rows.length-1].saldoFinal : null;
   const totalEntradas = rows.reduce((s,r)=>s+r.entradas,0);
   const totalSaidas = rows.reduce((s,r)=>s+r.saidas,0);
 
   return `
     <div class="topbar">
-      <div><h1>Fluxo de Caixa</h1><div class="sub">Saldo dia a dia — realizado até ${fmtDate(dataBase())}, projetado (orçamento, inclusive vencimento de faturas de cartão) depois disso</div></div>
+      <div><h1>Fluxo de Caixa</h1><div class="sub">${contaSelecionada
+        ? `Saldo dia a dia de ${contaSelecionada.name} — só o realizado (sem projeção de orçamento/fatura, que não pertence a uma conta específica até ser pago)`
+        : `Saldo dia a dia — realizado até ${fmtDate(dataBase())}, projetado (orçamento, inclusive vencimento de faturas de cartão) depois disso`}</div></div>
+    </div>
+    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin:-6px 0 16px;">
+      ${seletorConta}
+    </div>
+    <div class="card">
+      <h2>Fluxo mês a mês <small>clique no mês pra ver o detalhe dia a dia dele abaixo</small></h2>
+      ${fluxoMesAMesTable(all)}
     </div>
     <div class="monthtabs" id="fluxoMonthTabs">
       ${MESES_ORC.map(m=>`<button data-m="${m}" class="${m===fluxoMonth?'active':''}">${monthLabel(m)}</button>`).join('')}
     </div>
     <div class="tiles">
-      <div class="tile"><div class="label">Saldo início do mês</div><div class="value">${fmt(saldoInicioMes)}</div></div>
+      <div class="tile"><div class="label">Saldo início do mês</div><div class="value">${saldoInicioMes!==null?fmt(saldoInicioMes):'—'}</div></div>
       <div class="tile"><div class="label">Entradas no mês</div><div class="value pos">${fmt(totalEntradas)}</div></div>
       <div class="tile"><div class="label">Saídas no mês</div><div class="value neg">${fmt(totalSaidas)}</div></div>
-      <div class="tile"><div class="label">Saldo final do mês</div><div class="value ${saldoFimMes>=0?'pos':'neg'}">${fmt(saldoFimMes)}</div></div>
+      <div class="tile"><div class="label">Saldo final do mês</div><div class="value ${saldoFimMes!==null&&saldoFimMes>=0?'pos':'neg'}">${saldoFimMes!==null?fmt(saldoFimMes):'—'}</div></div>
     </div>
+    ${rows.length===0 ? `<div class="card"><div class="empty">Sem dados neste mês${contaSelecionada?` para ${contaSelecionada.name}`:''}.</div></div>` : `
     <div class="card">
       <h2>Fluxo sintético do mês <small>clique no número do dia pra ver o que compõe ele</small></h2>
       ${fluxoSinteticoTable(rows)}
@@ -5151,11 +5272,17 @@ function viewFluxo(){
       </table></div>
       `}
     </div>
+    `}
   `;
 }
 function wireFluxo(){
+  const contaSel = document.getElementById('fluxoContaSel');
+  if(contaSel) contaSel.addEventListener('change', ()=>{ fluxoConta = contaSel.value || null; render(); });
   document.querySelectorAll('#fluxoMonthTabs button').forEach(b=>{
     b.addEventListener('click', ()=>{ fluxoMonth = b.dataset.m; render(); });
+  });
+  document.querySelectorAll('[data-mesamesjump]').forEach(b=>{
+    b.addEventListener('click', ()=>{ fluxoMonth = b.dataset.mesamesjump; render(); });
   });
   document.querySelectorAll('#fluxoViewToggle button').forEach(b=>{
     b.addEventListener('click', ()=>{ fluxoView = b.dataset.view; render(); });
