@@ -3,35 +3,41 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Orçamento Pessoal — Painel</title>
+<title>Fluxo — Finanças pessoais</title>
 <link rel="manifest" href="./manifest.json">
 <link rel="icon" href="./icon-192.png">
 <link rel="apple-touch-icon" href="./icon-192.png">
-<meta name="theme-color" content="#2a78d6">
+<meta name="theme-color" content="#6046c6">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Orçamento">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 :root{
-  --surface-1:#fcfcfb; --surface-2:#f9f9f7; --surface-3:#ffffff;
-  --text-primary:#0b0b0b; --text-secondary:#52514e; --text-muted:#898781;
-  --grid:#e1e0d9; --baseline:#c3c2b7; --border:rgba(11,11,11,0.10);
-  --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#eda100;
-  --s5:#e87ba4; --s6:#008300; --s7:#4a3aa7; --s8:#e34948;
-  --good:#0ca30c; --warning:#fab219; --serious:#ec835a; --critical:#d03b3b;
-  --success-text:#006300;
-  --radius:10px;
+  --surface-1:#ffffff; --surface-2:#f5f7fb; --surface-3:#ffffff;
+  --text-primary:#14213d; --text-secondary:#475569; --text-muted:#64748b;
+  --grid:#e8edf4; --baseline:#cbd5e1; --border:#e2e8f0; --input:#d9dfeb;
+  --s1:#6046c6; --s2:#ea580c; --s3:#059669; --s4:#f59e0b;
+  --s5:#db2777; --s6:#0f766e; --s7:#2563eb; --s8:#e11d48;
+  --good:#059669; --warning:#f59e0b; --serious:#ea580c; --critical:#e11d48;
+  --success-text:#059669;
+  --accent-bg:#eeeafd; --accent-fg:#543bb5; --seg-bg:#e6eaf2;
+  --c-in:#059669; --c-out:#ea580c; --c-neg:#e11d48;
+  --radius:16px;
   color-scheme:light;
 }
 [data-theme="dark"]{
-  --surface-1:#1a1a19; --surface-2:#0d0d0d; --surface-3:#232322;
-  --text-primary:#ffffff; --text-secondary:#c3c2b7; --text-muted:#898781;
-  --grid:#2c2c2a; --baseline:#383835; --border:rgba(255,255,255,0.10);
-  --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500;
-  --s5:#d55181; --s6:#008300; --s7:#9085e9; --s8:#e66767;
-  --good:#0ca30c; --warning:#fab219; --serious:#ec835a; --critical:#d03b3b;
-  --success-text:#0ca30c;
+  --surface-1:#151b2e; --surface-2:#0b1020; --surface-3:#1c2340;
+  --text-primary:#eef1fa; --text-secondary:#b4bdd4; --text-muted:#8e9ab8;
+  --grid:#252d47; --baseline:#3a4466; --border:rgba(255,255,255,0.10); --input:#33405f;
+  --s1:#8b73f2; --s2:#fb923c; --s3:#34d399; --s4:#fbbf24;
+  --s5:#f472b6; --s6:#2dd4bf; --s7:#60a5fa; --s8:#fb7185;
+  --good:#34d399; --warning:#fbbf24; --serious:#fb923c; --critical:#fb7185;
+  --success-text:#34d399;
+  --accent-bg:#26204a; --accent-fg:#c3b6ff; --seg-bg:#1f2640;
+  --c-in:#34d399; --c-out:#fb923c; --c-neg:#fb7185;
   color-scheme:dark;
 }
 *{box-sizing:border-box;}
@@ -266,6 +272,204 @@ select.inlinesel{font-size:12px; padding:4px 6px; border-radius:6px; border:1px 
   .lockbox{padding:26px 20px;}
   .lockbox input{font-size:18px; letter-spacing:4px;}
 }
+
+/* ===================================================================
+   Tema "Fluxo" (Rodada 9) — visual no formato do app Fluxo:
+   roxo #6046c6, fundo #f5f7fb, cartões brancos arredondados, Inter,
+   sidebar com ícones, cabeçalho com busca/sino/+ Novo lançamento.
+   =================================================================== */
+body{font-family:Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; font-size:15px; -webkit-font-smoothing:antialiased;}
+.app{min-height:100vh;}
+.sidebar{width:248px; flex:0 0 248px; padding:18px 14px; gap:6px; position:sticky; top:0; height:100vh; overflow-y:auto; background:var(--surface-1); border-right:1px solid var(--border);}
+.brandrow{display:flex; align-items:center; gap:12px; padding:4px 6px 20px;}
+.brandlogo{width:44px; height:44px; border-radius:14px; background:var(--s1); color:#fff; display:grid; place-items:center; flex:0 0 44px;}
+.brandrow .bname{font-size:19px; font-weight:800; line-height:1.1; color:var(--text-primary);}
+.brandrow .bsub{font-size:12.5px; color:var(--text-muted); margin-top:2px;}
+.navbtn{display:flex; align-items:center; gap:14px; padding:13px 14px; border-radius:12px; font-size:14.5px; font-weight:500; color:var(--text-muted); border:none; background:transparent; cursor:pointer; text-align:left; width:100%;}
+.navbtn:hover{background:var(--surface-2); color:var(--text-primary);}
+.navbtn.active{background:var(--accent-bg); color:var(--accent-fg); font-weight:600;}
+.navbtn svg, .smallbtn svg{flex:0 0 auto;}
+.navsep{height:1px; background:var(--border); margin:8px 4px;}
+.navlabel{font-size:11px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--text-muted); padding:10px 14px 2px;}
+.sidebar-foot{margin-top:auto; padding-top:12px; border-top:1px solid var(--border); display:flex; flex-direction:column; gap:6px;}
+.datagroup{border-radius:12px;}
+.datagroup > summary{list-style:none; display:flex; align-items:center; gap:14px; padding:13px 14px; border-radius:12px; cursor:pointer; color:var(--text-muted); font-size:14.5px; font-weight:500;}
+.datagroup > summary::-webkit-details-marker{display:none;}
+.datagroup > summary:hover{background:var(--surface-2); color:var(--text-primary);}
+.datagroup[open] > summary{color:var(--text-primary);}
+.datagroup .datainner{padding:4px 4px 8px; display:flex; flex-direction:column; gap:6px;}
+.smallbtn{border-radius:12px; padding:10px 12px; font-size:13px; display:flex; align-items:center; gap:10px; background:var(--surface-1);}
+.usercard{display:flex; align-items:center; gap:12px; padding:12px 6px 4px; border-top:1px solid var(--border); margin-top:6px;}
+.avatar{width:40px; height:40px; border-radius:50%; background:#d1f4ea; color:#0f766e; display:grid; place-items:center; font-weight:700; font-size:14px; flex:0 0 40px;}
+[data-theme="dark"] .avatar{background:#12433b; color:#7be3cb;}
+.usercard .uname{font-weight:600; font-size:14px;}
+.usercard .usub{font-size:12px; color:var(--text-muted);}
+.acctsum{font-size:11.5px; color:var(--text-muted); padding:0 6px 6px; line-height:1.4;}
+
+.content{flex:1; min-width:0; display:flex; flex-direction:column;}
+.appheader{position:sticky; top:0; z-index:60; display:flex; align-items:center; gap:14px; padding:14px 28px; background:var(--surface-1); border-bottom:1px solid var(--border);}
+.appheader .hdrtitle{flex:1; min-width:0;}
+.appheader h1{margin:0; font-size:21px; font-weight:800; letter-spacing:-.01em;}
+.appheader .hdrsub{font-size:12.5px; color:var(--text-muted); margin-top:1px;}
+.hdractions{display:flex; align-items:center; gap:10px;}
+.iconbtn{position:relative; width:44px; height:44px; border-radius:12px; border:1px solid var(--s1); background:var(--surface-1); color:var(--text-primary); display:grid; place-items:center; cursor:pointer; padding:0;}
+.iconbtn:hover{background:var(--accent-bg);}
+.iconbtn .dot{position:absolute; top:7px; right:8px; width:9px; height:9px; border-radius:50%; background:#f97316; border:2px solid var(--surface-1);}
+button.btn.newbtn{display:inline-flex; align-items:center; gap:8px; height:44px; padding:0 18px;}
+.main{padding:26px 28px 70px; max-width:1240px; width:100%; margin:0 auto;}
+
+/* tipografia de seção e componentes */
+.topbar{margin-bottom:20px;}
+.topbar h1{font-size:24px; font-weight:800; letter-spacing:-.01em;}
+.topbar .sub{font-size:14px; color:var(--text-muted);}
+.card{border-radius:18px; padding:22px 24px; box-shadow:0 1px 2px rgba(20,33,61,.04); border:1px solid var(--border);}
+.card h2{font-size:17px; font-weight:700; margin:0 0 6px;}
+.card h2 small{font-size:13px; color:var(--text-muted); font-weight:400;}
+.card .cardsub{font-size:13.5px; color:var(--text-muted); margin:-2px 0 16px;}
+select, input[type=text], input[type=date], input[type=number], input[type=month], input[type=password], textarea{border-radius:12px; border:1px solid var(--input); padding:9px 12px; font-size:14px; background:var(--surface-1); color:var(--text-primary);}
+select:focus, input:focus, textarea:focus{outline:2px solid color-mix(in srgb, var(--s1) 35%, transparent); outline-offset:0; border-color:var(--s1);}
+button.btn{border-radius:12px; padding:10px 18px; font-size:14px; font-weight:600; background:var(--s1);}
+button.btn:hover{filter:brightness(1.08);}
+button.btn.secondary{background:var(--surface-1); border:1px solid var(--input); color:var(--text-primary);}
+button.btn.secondary:hover{background:var(--surface-2);}
+button.btn.danger{border-radius:12px;}
+.tag{border-radius:999px;}
+.pill{border-radius:999px; font-weight:600;}
+
+/* "stat cards" com ícone */
+.tiles{grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:16px; margin-bottom:22px;}
+.tile{position:relative; border-radius:18px; padding:20px 22px; box-shadow:0 1px 2px rgba(20,33,61,.04); background:var(--surface-1);}
+.tile .label{font-size:14.5px; color:var(--text-muted);}
+.tile .value{font-size:28px; font-weight:800; letter-spacing:-.02em; margin-top:8px; color:var(--text-primary);}
+.tile .hint{font-size:13px; color:var(--text-muted); margin-top:6px;}
+.tile .chip{position:absolute; top:18px; right:18px; width:48px; height:48px; border-radius:14px; display:grid; place-items:center;}
+.chip.purple{background:var(--accent-bg); color:var(--accent-fg);}
+.chip.green{background:#d9f7ea; color:#059669;}
+.chip.orange{background:#ffedd5; color:#c2410c;}
+.chip.blue{background:#dbeafe; color:#1d4ed8;}
+.chip.rose{background:#ffe4e6; color:#be123c;}
+[data-theme="dark"] .chip.green{background:#0d3a2c;} [data-theme="dark"] .chip.orange{background:#41230f;} [data-theme="dark"] .chip.blue{background:#16284d;} [data-theme="dark"] .chip.rose{background:#44131d;}
+.tile .value.pos{color:var(--success-text);} .tile .value.neg{color:var(--critical);}
+.tile.has-chip .label, .tile.has-chip .value{padding-right:58px;}
+
+/* controle segmentado (Dia a dia | Por mês) e abas de mês */
+.segmented{display:inline-flex; padding:5px; border-radius:14px; background:var(--seg-bg); gap:2px;}
+.segmented button{border:none; background:transparent; padding:9px 18px; border-radius:10px; font-size:14.5px; font-weight:600; color:var(--text-muted); cursor:pointer;}
+.segmented button.active{background:var(--surface-1); color:var(--accent-fg); box-shadow:0 1px 3px rgba(20,33,61,.12);}
+.monthtabs button{border-radius:999px; padding:7px 14px; font-size:13px; border:1px solid var(--input);}
+.monthtabs button.active{background:var(--s1); border-color:var(--s1);}
+.toolbar{display:flex; gap:12px; flex-wrap:wrap; align-items:center; margin-bottom:18px;}
+
+/* tabela estilo "Demonstrativo" */
+table{font-size:14px;}
+th{font-size:13px; font-weight:700; color:var(--text-muted); padding:12px 12px; border-bottom:1px solid var(--text-primary);}
+[data-theme="dark"] th{border-bottom-color:var(--baseline);}
+td{padding:14px 12px; border-bottom:1px solid var(--grid);}
+td.in{color:var(--c-in); text-align:right;} td.out{color:var(--c-out); text-align:right;}
+td.res-pos{color:var(--c-in); font-weight:700; text-align:right;} td.res-neg{color:var(--c-neg); font-weight:700; text-align:right;}
+.val-pos{color:var(--c-in); font-weight:700;} .val-neg{color:var(--text-primary);}
+
+/* lista de movimentações */
+.mvlist{display:flex; flex-direction:column;}
+.mvrow{display:flex; gap:14px; align-items:flex-start; justify-content:space-between; padding:14px 4px; border-bottom:1px solid var(--grid);}
+.mvrow:last-child{border-bottom:none;}
+.mvrow .mvmain{min-width:0; flex:1;}
+.mvrow .mvtitle{font-weight:700; font-size:15px; overflow-wrap:anywhere;}
+.mvrow .mvsub{font-size:13px; color:var(--text-muted); margin-top:3px;}
+.mvrow .mvctl{margin-top:8px; display:flex; gap:8px; flex-wrap:wrap; align-items:center;}
+.mvrow .mvval{font-weight:800; font-size:15.5px; white-space:nowrap; text-align:right;}
+.mvrow .mvval.pos{color:var(--c-in);} .mvrow .mvval.neg{color:var(--text-primary);}
+.mvrow .mvside{display:flex; flex-direction:column; align-items:flex-end; gap:8px;}
+.filtergrid{display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:14px; padding:18px; border:1px solid var(--border); border-radius:16px; background:var(--surface-2); margin-bottom:16px;}
+.filtergrid label{display:block; font-size:12.5px; font-weight:700; color:var(--text-muted); margin-bottom:6px;}
+.filtergrid select, .filtergrid input{width:100%; box-sizing:border-box; max-width:none;}
+
+/* cartões de lista (Contas / Cartões / Plano de contas) */
+.listcards{display:flex; flex-direction:column; gap:14px;}
+.lcard{display:flex; align-items:center; gap:14px; padding:16px 18px; border:1px solid var(--text-primary); border-radius:16px; background:var(--surface-1); cursor:pointer; text-align:left; width:100%; font-family:inherit; color:inherit;}
+[data-theme="dark"] .lcard{border-color:var(--baseline);}
+.lcard:hover{background:var(--surface-2);}
+.lcard.sel{outline:2px solid var(--s1); outline-offset:1px;}
+.lcard .bar{width:6px; align-self:stretch; border-radius:6px; flex:0 0 6px; min-height:34px;}
+.lcard .lmain{flex:1; min-width:0;}
+.lcard .ltitle{font-weight:700; font-size:16px;}
+.lcard .lsub{font-size:13.5px; color:var(--text-muted); margin-top:3px; line-height:1.5;}
+.lcard .lbtn{display:inline-flex; align-items:center; gap:6px; border:1px solid var(--s1); color:var(--accent-fg); border-radius:999px; padding:6px 14px; font-size:13px; font-weight:600; background:var(--surface-1);}
+.lgrid{display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:14px;}
+.pgroup{border:1px solid var(--text-primary); border-radius:16px; margin-bottom:14px; overflow:hidden; background:var(--surface-1);}
+[data-theme="dark"] .pgroup{border-color:var(--baseline);}
+.pgroup > summary{list-style:none; cursor:pointer; display:flex; align-items:center; gap:14px; padding:16px 18px;}
+.pgroup > summary::-webkit-details-marker{display:none;}
+.pgroup > summary .chev{transition:transform .15s; color:var(--text-muted);}
+.pgroup[open] > summary .chev{transform:rotate(90deg);}
+.pgroup .pbar{width:6px; align-self:stretch; border-radius:6px; background:var(--s1); min-height:34px;}
+.pgroup .pname{font-weight:700; font-size:16px;} .pgroup .pcount{font-size:13.5px; color:var(--text-muted);}
+.pgroup .psubs{padding:2px 18px 14px 18px; border-top:1px solid var(--grid);}
+.psub{display:grid; grid-template-columns:minmax(0,1.4fr) 110px 70px auto; gap:10px; align-items:center; padding:9px 0; border-bottom:1px dashed var(--grid);}
+.psub:last-child{border-bottom:none;}
+.psub input[type=text]{width:100%; box-sizing:border-box;}
+.psub .uses{font-size:12.5px; color:var(--text-muted); white-space:nowrap;}
+.iconmini{width:34px; height:34px; border-radius:10px; border:1px solid var(--s1); color:var(--accent-fg); background:var(--surface-1); display:inline-grid; place-items:center; cursor:pointer; padding:0;}
+.iconmini.del{border-color:var(--input); color:var(--text-muted);}
+.iconmini:disabled{opacity:.4; cursor:not-allowed;}
+.sysbadge{font-size:11px; padding:2px 8px; border-radius:999px; background:var(--surface-2); color:var(--text-muted); border:1px solid var(--border);}
+
+/* barras de progresso (Orçamentos) */
+.progress{height:9px; border-radius:999px; background:var(--seg-bg); overflow:hidden; margin-top:8px;}
+.progress > span{display:block; height:100%; border-radius:999px; background:var(--s1);}
+.progress.warn > span{background:#f59e0b;} .progress.bad > span{background:var(--critical);} .progress.ok > span{background:#0d9488;}
+.budcard{border:1px solid var(--text-primary); border-radius:16px; padding:16px 18px; margin-bottom:14px;}
+[data-theme="dark"] .budcard{border-color:var(--baseline);}
+
+.invoice{border-radius:16px; border-color:var(--border);}
+.invoice summary{background:var(--surface-2); padding:14px 18px;}
+.vbarchart, .legend{font-size:12.5px;}
+.hidden{display:none !important;}
+.chartwrap{width:100%; overflow-x:auto;}
+.chartwrap svg{display:block; width:100%; height:auto; min-width:520px;}
+.chartlegend{display:flex; gap:16px; flex-wrap:wrap; margin-top:8px; font-size:13px; color:var(--text-muted);}
+.chartlegend .sw{display:inline-block; width:12px; height:3px; border-radius:2px; margin-right:6px; vertical-align:middle;}
+
+/* responsivo */
+@media(max-width:860px){
+  .app{flex-direction:row;}
+  .sidebar{position:fixed; height:auto; top:0; left:0; bottom:0; z-index:500; width:82vw; max-width:300px; flex:none; transform:translateX(-100%); transition:transform .22s ease;}
+  .sidebar.open{transform:translateX(0);}
+  .appheader{padding:12px 16px;}
+  .appheader h1{font-size:19px;}
+  .appheader .hdrsub{display:none;}
+  button.btn.newbtn .lbl{display:none;}
+  button.btn.newbtn{width:44px; padding:0; justify-content:center;}
+  .main{padding:16px 16px 60px;}
+  .card{padding:18px 16px; border-radius:16px;}
+  .tiles{grid-template-columns:1fr; gap:12px;}
+  .tile .value{font-size:26px;}
+  .psub{grid-template-columns:minmax(0,1fr) auto; }
+  .psub .uses{display:none;}
+  .mvrow{flex-direction:column;}
+  .mvrow .mvside{flex-direction:row; align-items:center; width:100%; justify-content:space-between;}
+}
+.topbar h1{display:none;}
+.topbar{margin-bottom:14px;}
+.topbar .sub{font-size:14px;}
+.cardhead{display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:6px;}
+.cardhead h2{margin:0;}
+.invoice summary{flex-wrap:wrap; gap:6px 12px;}
+.filtergrid .filterrow{display:contents;}
+.toolbar .inlysel{max-width:240px;}
+.lgrid .lcard .lmain{display:block;}
+
+.tile .value{font-size:26px; white-space:nowrap;}
+.tile.has-chip .value{padding-right:0;}
+.tile .chip{top:16px; width:44px; height:44px;}
+input, select, textarea, button{font-family:inherit;}
+.tile.has-chip .label{padding-right:54px;}
+
+@media(max-width:860px){
+  .filtergrid{grid-template-columns:1fr 1fr; gap:10px; padding:14px;}
+  .filtergrid > div:first-child{grid-column:1 / -1;}
+  .lgrid{grid-template-columns:1fr;}
+}
 </style>
 </head>
 <body>
@@ -281,35 +485,44 @@ select.inlinesel{font-size:12px; padding:4px 6px; border-radius:6px; border:1px 
   </div>
 </div>
 <div class="app" id="appRoot" style="display:none;">
-  <div class="mobiletopbar">
-    <button class="menutoggle" id="btnMenuToggle" aria-label="Abrir menu">☰</button>
-    <div class="brand">💰 Orçamento Pessoal<small id="acctSummaryMobile"></small></div>
-  </div>
   <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
-  <div class="sidebar" id="sidebar">
-    <div class="brand">💰 Orçamento Pessoal<small id="acctSummary"></small></div>
-    <button class="navbtn active" data-tab="dashboard"><span class="ic">📊</span>Dashboard</button>
-    <button class="navbtn" data-tab="lancamentos"><span class="ic">📝</span>Lançamentos</button>
-    <button class="navbtn" data-tab="orcado"><span class="ic">🎯</span>Orçado x Realizado</button>
-    <button class="navbtn" data-tab="aberto"><span class="ic">⏰</span>Em Aberto</button>
-    <button class="navbtn" data-tab="fluxo"><span class="ic">📈</span>Fluxo de Caixa</button>
-    <button class="navbtn" data-tab="faturas"><span class="ic">💳</span>Faturas por cartão</button>
-    <button class="navbtn" data-tab="extratos"><span class="ic">🏦</span>Extratos por conta</button>
-    <button class="navbtn" data-tab="emprestimos"><span class="ic">🤝</span>Empréstimos</button>
-    <button class="navbtn" data-tab="cadastro"><span class="ic">⚙️</span>Cadastro</button>
-    <div class="sidebar-foot">
-      <div class="syncbox" id="syncBox">
-        <button class="smallbtn" id="btnConnectDrive">🔗 Conectar Google Drive</button>
-        <div class="syncstatus" id="syncStatus"></div>
-      </div>
-      <button class="smallbtn" id="btnExport">⬇️ Exportar dados (JSON)</button>
-      <button class="smallbtn" id="btnImport">⬆️ Importar dados (JSON)</button>
-      <button class="smallbtn" id="btnTheme">🌓 Alternar tema</button>
-      <button class="smallbtn" id="btnLock">🔒 Bloquear</button>
-      <input type="file" id="fileImport" accept="application/json" style="display:none">
+  <aside class="sidebar" id="sidebar">
+    <div class="brandrow">
+      <div class="brandlogo" id="brandLogo"></div>
+      <div><div class="bname">Fluxo</div><div class="bsub">Finanças pessoais</div></div>
     </div>
+    <nav id="navList" style="display:flex; flex-direction:column; gap:6px;"></nav>
+    <div class="sidebar-foot">
+      <details class="datagroup" id="dataGroup">
+        <summary id="dataGroupSummary"></summary>
+        <div class="datainner">
+          <div class="syncbox" id="syncBox">
+            <button class="smallbtn" id="btnConnectDrive">🔗 Conectar Google Drive</button>
+            <div class="syncstatus" id="syncStatus"></div>
+          </div>
+          <button class="smallbtn" id="btnExport">⬇️ Exportar dados (JSON)</button>
+          <button class="smallbtn" id="btnImport">⬆️ Importar dados (JSON)</button>
+          <button class="smallbtn" id="btnTheme">🌓 Alternar tema</button>
+          <button class="smallbtn" id="btnLock">🔒 Bloquear</button>
+          <input type="file" id="fileImport" accept="application/json" style="display:none">
+        </div>
+      </details>
+      <div class="acctsum" id="acctSummary"></div>
+      <div class="usercard"><div class="avatar">EA</div><div><div class="uname">Eriverton Alves</div><div class="usub">Conta pessoal</div></div></div>
+    </div>
+  </aside>
+  <div class="content">
+    <header class="appheader">
+      <button class="menutoggle" id="btnMenuToggle" aria-label="Abrir menu"></button>
+      <div class="hdrtitle"><h1 id="hdrTitle">Visão geral</h1><div class="hdrsub" id="hdrSub"></div></div>
+      <div class="hdractions">
+        <button class="iconbtn" id="btnSearch" aria-label="Pesquisar" title="Pesquisar movimentações"></button>
+        <button class="iconbtn" id="btnBell" aria-label="Pendências" title="Pendências (Em aberto)"></button>
+        <button class="btn newbtn" id="btnNovo" type="button"></button>
+      </div>
+    </header>
+    <div class="main" id="main"></div>
   </div>
-  <div class="main" id="main"></div>
 </div>
 <div class="tooltip" id="tooltip"></div>
 <div class="modal-overlay" id="rateioOverlay" style="display:none;">
@@ -3197,6 +3410,118 @@ select.inlinesel{font-size:12px; padding:4px 6px; border-radius:6px; border:1px 
 // ===================== Estado =====================
 const SEED = JSON.parse(document.getElementById('seed-data').textContent);
 const LS_KEY = 'orcamento_pessoal_state_v1';
+// ===================== Plano de contas (v2) =====================
+// Plano de contas no formato do app "Fluxo": contas principais (grupos) com subcontas. Os grupos
+// e subcontas abaixo são a base; categorias antigas do nosso app que NÃO têm equivalente exato
+// (ex.: Receita DNX, Judô, Parcelamento Itaú) continuam existindo como subcontas extras, dentro do
+// grupo mais parecido, pra não perder histórico nem as linhas de orçamento já cadastradas.
+const PLANO_VERSAO = 2;
+const PLANO_CONTAS = [
+  {grupo:'Alimentação',   tipo:'despesa',       subs:['Supermercado','Delivery','Restaurantes e lanches','Compras Diversas']},
+  {grupo:'ESA',           tipo:'despesa',       subs:['Coworking','Contador','Impostos diversos']},
+  {grupo:'Educação',      tipo:'despesa',       subs:['Cursos e mensalidades','Livros e materiais']},
+  {grupo:'Familiares',    tipo:'despesa',       subs:['Mãe','Isaac','Saymon','Mile']},
+  {grupo:'Financeiro',    tipo:'despesa',       subs:['Impostos','Seguros','Tarifas bancárias','Juros e multas']},
+  {grupo:'Lazer',         tipo:'despesa',       subs:['Viagens','Assinaturas','Cinema e eventos']},
+  {grupo:'Moradia',       tipo:'despesa',       subs:['Aluguel','Condomínio','Energia','Água','Internet','Gás','Manutenção da casa']},
+  {grupo:'Pessoais',      tipo:'despesa',       subs:['Vestuário','Beleza e cuidados pessoais','Presentes','Outros pessoais']},
+  {grupo:'Receitas',      tipo:'receita',       subs:['Salário','Rendimentos','Trabalhos extras','Reembolsos','Outras receitas']},
+  {grupo:'Saúde',         tipo:'despesa',       subs:['Plano de saúde','Farmácia','Consultas e exames']},
+  {grupo:'Transferências',tipo:'transferencia', subs:['Entre contas','Pagamento de cartão']},
+  {grupo:'Transporte',    tipo:'despesa',       subs:['Combustível','Aplicativos e táxi','Estacionamento e pedágio','Transporte público','Manutenção do veículo','Seguro do veículo']},
+];
+function planoSlug(s){ return String(s).normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,''); }
+const planoId = (grupo, nome) => 'pl_' + planoSlug(grupo) + '__' + planoSlug(nome);
+// Categoria antiga -> subconta equivalente do novo plano (as duas são fundidas).
+const PLANO_MAPA = {
+  custom_outras_receitas_mtuvzpug:['Receitas','Outras receitas'],
+  esa_contador:['ESA','Contador'], esa_coworking:['ESA','Coworking'],
+  esa_plano_saude:['Saúde','Plano de saúde'],
+  moradia_aluguel:['Moradia','Aluguel'], moradia_condominio:['Moradia','Condomínio'],
+  moradia_energia:['Moradia','Energia'], moradia_internet:['Moradia','Internet'],
+  moradia_iptu:['Financeiro','Impostos'], moradia_juros:['Financeiro','Juros e multas'],
+  moradia_seguro_incendio:['Financeiro','Seguros'], moradia_taxa_boleto:['Financeiro','Tarifas bancárias'],
+  cartao_anuidade:['Financeiro','Tarifas bancárias'],
+  moradia_netflix:['Lazer','Assinaturas'], pessoais_google_drive:['Lazer','Assinaturas'],
+  moradia_banho_mile:['Familiares','Mile'],
+  moradia_pao:['Alimentação','Supermercado'], moradia_supermercado:['Alimentação','Supermercado'],
+  pessoais_restaurantes:['Alimentação','Restaurantes e lanches'],
+  isaac_livro:['Educação','Livros e materiais'], pessoais_direcao:['Educação','Cursos e mensalidades'],
+  isaac_recarga_tim:['Familiares','Isaac'], custom_isaac_outros_mszx6smp:['Familiares','Isaac'],
+  mae_tim:['Familiares','Mãe'], custom_m_e_outros_mtuvygf8:['Familiares','Mãe'],
+  custom_saymon_mtuvzd4n:['Familiares','Saymon'],
+  pessoais_corte_cabelo:['Pessoais','Beleza e cuidados pessoais'],
+  custom_roupas_e_cal_ados_mszxehbq:['Pessoais','Vestuário'],
+  outros_diversos:['Pessoais','Outros pessoais'],
+  pessoais_viagens:['Lazer','Viagens'], pessoais_viagem_passagens:['Lazer','Viagens'], pessoais_viagem_hotel:['Lazer','Viagens'],
+  outros_saude:['Saúde','Farmácia'],
+  transporte_uber:['Transporte','Aplicativos e táxi'],
+  sys_transferencia:['Transferências','Entre contas'],
+};
+// Categoria antiga SEM equivalente: mantém o id (lançamentos/orçamento seguem apontando pra ela),
+// só muda de grupo (e, quando indicado, de nome).
+const PLANO_EXTRAS = {
+  receita_dnx:{grupo:'Receitas'}, receita_essential:{grupo:'Receitas'}, receita_hp:{grupo:'Receitas'},
+  esa_imposto_simples:{grupo:'ESA'}, esa_imposto_simples_hp:{grupo:'ESA'}, esa_imposto_atrasado:{grupo:'ESA'},
+  esa_inss:{grupo:'ESA'}, custom_sistemas_mtux9j76:{grupo:'ESA'},
+  moradia_credpago:{grupo:'Moradia'},
+  emprestimo_mae:{grupo:'Familiares'}, isaac_judo:{grupo:'Familiares'}, isaac_corte_cabelo:{grupo:'Familiares'},
+  parcelamento_itau:{grupo:'Financeiro'}, parcelamento_movida:{grupo:'Financeiro'}, parcelamento_bradesco:{grupo:'Financeiro'},
+  pessoais_academia:{grupo:'Pessoais'}, pessoais_tim:{grupo:'Pessoais'}, pessoais_ia:{grupo:'Pessoais'}, outros_compras:{grupo:'Pessoais'},
+  custom_pagamento_fatura_cart_o_mszy27c7:{grupo:'Transferências', nome:'Pagamento de cartão'},
+  custom_transfer_ncias_mszy4jo9:{grupo:'Transferências', nome:'Transferências a terceiros'},
+};
+const PLANO_NOMES_CONTAS = {
+  itau_pf:['Itaú','#6046c6'], inter_pf:['Inter','#0f766e'], esa_pj:['ESA - Inter','#2563eb'],
+  bb:['Banco do Brasil','#b45309'], carteira:['Carteira','#be123c'],
+};
+const PLANO_NOMES_CARTOES = {
+  itau_platinum:['Itaú (final 7586)','#0f766e'], itau_0705:['Itaú (final 0705)','#2563eb'],
+  inter_card:['Inter','#b45309'], nubank:['Nubank','#be123c'], digio:['Digio','#6046c6'],
+};
+// Migração idempotente (só roda 1x por conjunto de dados, marcada em st.planoVersao).
+function migrarPlanoDeContas(st){
+  if((st.planoVersao||1) >= PLANO_VERSAO) return false;
+  const velhas = st.categories || [];
+  const novas = [];
+  const idPorChave = {};
+  PLANO_CONTAS.forEach(g=>g.subs.forEach(nome=>{
+    // "Entre contas" reaproveita a categoria de sistema; "Pagamento de cartão" reaproveita a nossa
+    // (mantida como despesa, pra não sumir do fluxo de caixa combinado).
+    let id = planoId(g.grupo, nome), tipo = g.tipo;
+    if(g.grupo==='Transferências' && nome==='Entre contas') id = 'sys_transferencia';
+    if(g.grupo==='Transferências' && nome==='Pagamento de cartão'){ id = 'custom_pagamento_fatura_cart_o_mszy27c7'; tipo = 'despesa'; }
+    idPorChave[g.grupo+'|'+nome] = id;
+    novas.push({id, nome, grupo:g.grupo, tipo});
+  }));
+  const remap = {};
+  const extras = [];
+  velhas.forEach(c=>{
+    if(PLANO_MAPA[c.id]){
+      const alvo = idPorChave[PLANO_MAPA[c.id].join('|')];
+      if(alvo !== c.id) remap[c.id] = alvo;
+    } else if(PLANO_EXTRAS[c.id]){
+      const ex = PLANO_EXTRAS[c.id];
+      if(!novas.some(n=>n.id===c.id)) extras.push({...c, grupo:ex.grupo, nome:ex.nome||c.nome});
+    } else if(c.id.startsWith('sys_')){
+      if(c.id!=='sys_transferencia') extras.push({...c}); // ajuste de saldo / empréstimo concedido
+    } else if(!novas.some(n=>n.id===c.id)){
+      extras.push({...c}); // categoria criada pelo usuário que não conhecemos: preserva como está
+    }
+  });
+  st.categories = novas.concat(extras);
+  const mapId = id => remap[id] || id;
+  (st.lancamentos||[]).forEach(l=>{
+    l.categoriaId = mapId(l.categoriaId);
+    if(Array.isArray(l.rateio)) l.rateio.forEach(p=>{ p.categoriaId = mapId(p.categoriaId); });
+  });
+  (st.orcamento||[]).forEach(o=>{ o.categoriaId = mapId(o.categoriaId); });
+  (st.accounts||[]).forEach(a=>{ const n = PLANO_NOMES_CONTAS[a.id]; if(n){ a.name = n[0]; if(!a.cor) a.cor = n[1]; } });
+  (st.cards||[]).forEach(c=>{ const n = PLANO_NOMES_CARTOES[c.id]; if(n){ c.name = n[0]; if(!c.cor) c.cor = n[1]; } });
+  st.planoVersao = PLANO_VERSAO;
+  return true;
+}
+
 let state;
 (function initState(){
   let saved = null;
@@ -3229,7 +3554,9 @@ function ensureDefaults(){
   }
   if(!Array.isArray(state.emprestimos)) state.emprestimos = [];
   if(!Array.isArray(state.mesesFechados)) state.mesesFechados = [];
+  if(!Array.isArray(state.planoGrupos)) state.planoGrupos = [];
   (state.cards||[]).forEach(c=>{ if(c.diaVencimento===undefined) c.diaVencimento = null; });
+  migrarPlanoDeContas(state);
 }
 
 // ===================== Fechamento de mês =====================
@@ -3650,14 +3977,92 @@ document.getElementById('btnConnectDrive').addEventListener('click', connectDriv
 initDrive();
 
 // ===================== Navegação =====================
+// ===================== Ícones (traço fino, estilo Lucide) =====================
+const ICONS = {
+  home:'<path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
+  receipt:'<path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><path d="M14 8H8"/><path d="M16 12H8"/><path d="M13 16H8"/>',
+  calendar:'<path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/><path d="M8 18h.01"/><path d="M12 18h.01"/><path d="M16 18h.01"/>',
+  banknote:'<rect width="20" height="12" x="2" y="6" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/>',
+  card:'<rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/>',
+  tree:'<path d="M21 12h-8"/><path d="M21 6H8"/><path d="M21 18h-8"/><path d="M3 6v4c0 1.1.9 2 2 2h3"/><path d="M3 10v6c0 1.1.9 2 2 2h3"/>',
+  target:'<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>',
+  clock:'<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
+  users:'<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+  settings:'<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>',
+  wallet:'<path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/>',
+  up:'<path d="M7 7h10v10"/><path d="M7 17 17 7"/>',
+  down:'<path d="M17 17H7V7"/><path d="M17 7 7 17"/>',
+  landmark:'<line x1="3" x2="21" y1="22" y2="22"/><line x1="6" x2="6" y1="18" y2="11"/><line x1="10" x2="10" y1="18" y2="11"/><line x1="14" x2="14" y1="18" y2="11"/><line x1="18" x2="18" y1="18" y2="11"/><polygon points="12 2 20 7 4 7"/>',
+  search:'<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
+  bell:'<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>',
+  plus:'<path d="M5 12h14"/><path d="M12 5v14"/>',
+  menu:'<line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="18" y2="18"/>',
+  chev:'<path d="m9 18 6-6-6-6"/>',
+  pencil:'<path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/>',
+  trash:'<path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/>',
+  transfer:'<path d="m16 3 4 4-4 4"/><path d="M20 7H4"/><path d="m8 21-4-4 4-4"/><path d="M4 17h16"/>',
+};
+function icon(name, size){
+  size = size || 20;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name]||''}</svg>`;
+}
+// Abas do app — nomes no padrão do Fluxo; "Em aberto", "Empréstimos" e "Cadastro" são extras nossos.
+const TABS = [
+  {id:'dashboard',   label:'Visão geral',     icon:'home'},
+  {id:'lancamentos', label:'Movimentações',   icon:'receipt'},
+  {id:'fluxo',       label:'Fluxo de caixa',  icon:'calendar'},
+  {id:'extratos',    label:'Contas',          icon:'banknote'},
+  {id:'faturas',     label:'Cartões',         icon:'card'},
+  {id:'plano',       label:'Plano de contas', icon:'tree'},
+  {id:'orcado',      label:'Orçamentos',      icon:'target'},
+  {sep:true},
+  {id:'aberto',      label:'Em aberto',       icon:'clock'},
+  {id:'emprestimos', label:'Empréstimos',     icon:'users'},
+  {id:'cadastro',    label:'Cadastro',        icon:'settings'},
+];
+function buildShell(){
+  document.getElementById('navList').innerHTML = TABS.map(t=> t.sep
+    ? '<div class="navsep"></div>'
+    : `<button class="navbtn ${t.id===currentTab?'active':''}" data-tab="${t.id}">${icon(t.icon,22)}<span>${t.label}</span></button>`).join('');
+  document.getElementById('brandLogo').innerHTML = icon('wallet',24);
+  document.getElementById('btnMenuToggle').innerHTML = icon('menu',22);
+  document.getElementById('btnSearch').innerHTML = icon('search',20);
+  document.getElementById('btnBell').innerHTML = icon('bell',20) + '<span class="dot hidden" id="bellDot"></span>';
+  document.getElementById('btnNovo').innerHTML = icon('plus',20) + '<span class="lbl">Novo lançamento</span>';
+  document.getElementById('dataGroupSummary').innerHTML = icon('settings',22) + '<span>Proteção dos dados</span>';
+}
+function pendenciasCount(){
+  const mes = todayInfo().month;
+  return state.orcamento.filter(line=> statusForLine(line, mes).pill==='late').length;
+}
+function updateHeader(){
+  const t = TABS.find(x=>x.id===currentTab) || TABS[0];
+  document.getElementById('hdrTitle').textContent = t.label;
+  let d = new Date(dataBase()+'T12:00:00').toLocaleDateString('pt-BR',{weekday:'long', day:'numeric', month:'long'});
+  d = d.charAt(0).toUpperCase()+d.slice(1);
+  document.getElementById('hdrSub').textContent = d + ' · data de referência';
+  const n = pendenciasCount();
+  const dot = document.getElementById('bellDot');
+  if(dot) dot.classList.toggle('hidden', n===0);
+  document.getElementById('btnBell').title = n ? `${n} pendência(s) neste mês — abrir "Em aberto"` : 'Nenhuma pendência neste mês';
+}
+function goTab(id){
+  currentTab = id;
+  document.querySelectorAll('.navbtn').forEach(b=>b.classList.toggle('active', b.dataset.tab===id));
+  render();
+  closeMobileMenu();
+  window.scrollTo({top:0});
+}
+buildShell();
+document.getElementById('btnSearch').addEventListener('click', ()=>{ goTab('lancamentos'); setTimeout(()=>{ const i=document.getElementById('mvBusca'); if(i) i.focus(); },30); });
+document.getElementById('btnBell').addEventListener('click', ()=> goTab('aberto'));
+document.getElementById('btnNovo').addEventListener('click', ()=>{
+  goTab('lancamentos');
+  setTimeout(()=>{ const d=document.getElementById('detNovo'); if(d){ d.open = true; d.scrollIntoView({behavior:'smooth', block:'start'}); } },30);
+});
+
 document.querySelectorAll('.navbtn').forEach(btn=>{
-  btn.addEventListener('click', ()=>{
-    document.querySelectorAll('.navbtn').forEach(b=>b.classList.remove('active'));
-    btn.classList.add('active');
-    currentTab = btn.dataset.tab;
-    render();
-    closeMobileMenu();
-  });
+  btn.addEventListener('click', ()=> goTab(btn.dataset.tab));
 });
 
 // ===================== Menu mobile (celular) =====================
@@ -3730,6 +4135,7 @@ function persistState(){
 function render(){
   persistState();
   updateSidebarSummary();
+  updateHeader();
   const main = document.getElementById('main');
   if(currentTab==='dashboard'){ main.innerHTML = viewDashboard(); wireDashboard(); }
   else if(currentTab==='lancamentos'){ main.innerHTML = viewLancamentos(); wireLancamentos(); }
@@ -3740,10 +4146,12 @@ function render(){
   else if(currentTab==='extratos'){ main.innerHTML = viewExtratos(); wireExtratoFiltros(); render_extratoFor(state.accounts[0].id); }
   else if(currentTab==='emprestimos'){ main.innerHTML = viewEmprestimos(); wireEmprestimos(); }
   else if(currentTab==='cadastro'){ main.innerHTML = viewCadastro(); wireCadastro(); }
+  else if(currentTab==='plano'){ main.innerHTML = viewPlano(); wirePlano(); }
   wireCommon();
 }
 
 function wireCommon(){
+  document.querySelectorAll('[data-goto]').forEach(b=>{ b.addEventListener('click', ()=> goTab(b.dataset.goto)); });
   document.querySelectorAll('[data-account-select]').forEach(sel=>{
     sel.addEventListener('change', ()=>render_extratoFor(sel.value));
   });
@@ -3772,13 +4180,53 @@ function expandRateio(list){
   return out;
 }
 
+// ---------- helpers de gráfico (Fluxo) ----------
+let __gradN = 0;
+const fmtK = (v)=>{ const a=Math.abs(v); const s = a>=1000 ? (a/1000).toLocaleString('pt-BR',{maximumFractionDigits:1})+' mil' : String(Math.round(a)); return (v<0?'-':'')+s; };
+function saldoAreaChart(rows, opts){
+  opts = opts||{};
+  if(!rows.length) return '<div class="empty">Sem dados no período</div>';
+  const W=900, H=opts.h||230, pl=62, pr=16, pt=14, pb=30, fs=opts.fs||13;
+  const vals = rows.map(r=>r.saldoFinal);
+  let mn=Math.min(...vals,0), mx=Math.max(...vals,0);
+  if(mx===mn) mx = mn+1;
+  const padv=(mx-mn)*0.08; mn-=padv; mx+=padv;
+  const n = rows.length;
+  const x = i => pl + (n===1 ? (W-pl-pr)/2 : i*(W-pl-pr)/(n-1));
+  const y = v => pt + (mx-v)/(mx-mn)*(H-pt-pb);
+  const seg = (a,b)=> rows.slice(a,b).map((r,k)=>`${k===0?'M':'L'}${x(a+k).toFixed(1)},${y(r.saldoFinal).toFixed(1)}`).join(' ');
+  const idxF = rows.findIndex(r=>r.isFuture);
+  const cut = idxF<0 ? n : idxF;
+  const gid = 'grad'+(++__gradN);
+  const y0 = y(0).toFixed(1);
+  const full = seg(0,n);
+  const area = `${full} L${x(n-1).toFixed(1)},${y0} L${x(0).toFixed(1)},${y0} Z`;
+  const ticks = [0,1,2,3,4].map(i=>{ const v = mn + (mx-mn)*i/4; return `<line x1="${pl}" x2="${W-pr}" y1="${y(v).toFixed(1)}" y2="${y(v).toFixed(1)}" style="stroke:var(--grid)" stroke-dasharray="3 4"/><text x="${pl-8}" y="${(y(v)+4).toFixed(1)}" text-anchor="end" style="font-size:${fs}px; fill:var(--text-muted)">${fmtK(v)}</text>`; }).join('');
+  const nx = Math.min(6, n);
+  const xl = []; for(let k=0;k<nx;k++){ const i = nx===1?0:Math.round(k*(n-1)/(nx-1)); if(!xl.includes(i)) xl.push(i); }
+  const xlabels = xl.map(i=>`<text x="${x(i).toFixed(1)}" y="${H-8}" text-anchor="middle" style="font-size:${fs}px; fill:var(--text-muted)">${rows[i].data.slice(8)}/${rows[i].data.slice(5,7)}</text>`).join('');
+  const hits = rows.map((r,i)=>`<circle data-tip="${fmtDate(r.data)} · Saldo: ${fmt(r.saldoFinal)}${r.isFuture?' (projetado)':''}" cx="${x(i).toFixed(1)}" cy="${y(r.saldoFinal).toFixed(1)}" r="${n>60?4:7}" fill="transparent"/>`).join('');
+  const zero = (mn<0&&mx>0) ? `<line x1="${pl}" x2="${W-pr}" y1="${y0}" y2="${y0}" style="stroke:var(--text-muted)" stroke-width="1"/>` : '';
+  return `<div class="chartwrap"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Evolução do saldo">
+    <defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" style="stop-color:var(--s1);stop-opacity:.28"/><stop offset="100%" style="stop-color:var(--s1);stop-opacity:.02"/></linearGradient></defs>
+    ${ticks}${zero}
+    <path d="${area}" fill="url(#${gid})" stroke="none"/>
+    ${cut>0 ? `<path d="${seg(0,cut)}" fill="none" style="stroke:var(--s1)" stroke-width="2.5" stroke-linejoin="round"/>` : ''}
+    ${idxF>=0 ? `<path d="${seg(Math.max(idxF-1,0), n)}" fill="none" style="stroke:var(--s1)" stroke-width="2.5" stroke-dasharray="6 5" stroke-linejoin="round"/>` : ''}
+    ${xlabels}${hits}
+  </svg></div>
+  <div class="chartlegend"><span><span class="sw" style="background:var(--s1)"></span>Saldo realizado</span>${idxF>=0?'<span><span class="sw" style="background:repeating-linear-gradient(90deg,var(--s1) 0 4px,transparent 4px 7px)"></span>Projetado (orçamento e faturas)</span>':''}</div>`;
+}
+function mvOrigemNome(l){ const o = l.origemTipo==='conta' ? accById(l.origemId) : cardById(l.origemId); return o ? o.name : '—'; }
+function mvRowSimpleHTML(l){
+  const c = catById(l.categoriaId);
+  return `<div class="mvrow"><div class="mvmain"><div class="mvtitle">${l.descricao}</div><div class="mvsub">${fmtDate(l.data)} · ${mvOrigemNome(l)} · ${c.grupo} — ${c.nome}</div></div><div class="mvval ${l.valor>=0?'pos':'neg'}">${fmt(l.valor)}</div></div>`;
+}
+
+// ===================== Dashboard (Visão geral) =====================
 let dashMonth = null;
 function viewDashboard(){
   const months = availableMonths();
-  // mês atual = o mês da data de referência do app (última data informada nos dados),
-  // NÃO o último mês que aparece em algum lançamento — isso incluiria faturas de
-  // parcelamentos futuros (ex: uma compra em 12x pode gerar fatura lá na frente) e
-  // fazia o "mês de referência" pular pra um mês sem sentido nenhum como mai/27.
   const cur = todayInfo().month;
   const month = (dashMonth && months.includes(dashMonth)) ? dashMonth : cur;
   const contaTx = expandRateio(state.lancamentos.filter(l=>l.origemTipo==='conta' && l.data.slice(0,7)===month));
@@ -3793,60 +4241,71 @@ function viewDashboard(){
   const saldoMes = totalReceita - totalDespesa;
   const saldoContas = state.accounts.reduce((s,a)=>s+a.saldoAtual,0);
 
-  // gastos por grupo (conta + cartão, despesas)
   const allDespesas = [...despesasConta, ...despesasCartao];
   const byGrupo = {};
-  allDespesas.forEach(l=>{
-    const g = catById(l.categoriaId).grupo;
-    byGrupo[g] = (byGrupo[g]||0) + Math.abs(l.valor);
-  });
+  allDespesas.forEach(l=>{ const g = catById(l.categoriaId).grupo; byGrupo[g] = (byGrupo[g]||0) + Math.abs(l.valor); });
   let grupoArr = Object.entries(byGrupo).sort((a,b)=>b[1]-a[1]);
-  if(grupoArr.length>7){
-    const top = grupoArr.slice(0,7);
-    const outros = grupoArr.slice(7).reduce((s,[,v])=>s+v,0);
-    grupoArr = [...top, ['Outros grupos', outros]];
-  }
+  if(grupoArr.length>7){ const top = grupoArr.slice(0,7); const outros = grupoArr.slice(7).reduce((s,[,v])=>s+v,0); grupoArr = [...top, ['Outros grupos', outros]]; }
   const maxGrupo = Math.max(...grupoArr.map(g=>g[1]), 1);
-
-  // gastos por categoria (mais granular que grupo) — para o gráfico de rosca
   const byCategoria = {};
-  allDespesas.forEach(l=>{
-    const nome = catById(l.categoriaId).nome;
-    byCategoria[nome] = (byCategoria[nome]||0) + Math.abs(l.valor);
-  });
+  allDespesas.forEach(l=>{ const nome = catById(l.categoriaId).nome; byCategoria[nome] = (byCategoria[nome]||0) + Math.abs(l.valor); });
   let catArr = Object.entries(byCategoria).sort((a,b)=>b[1]-a[1]);
-  if(catArr.length>7){
-    const top = catArr.slice(0,7);
-    const outras = catArr.slice(7).reduce((s,[,v])=>s+v,0);
-    catArr = [...top, ['Outras categorias', outras]];
-  }
+  if(catArr.length>7){ const top = catArr.slice(0,7); const outras = catArr.slice(7).reduce((s,[,v])=>s+v,0); catArr = [...top, ['Outras categorias', outras]]; }
   const totalCategorias = catArr.reduce((s,[,v])=>s+v,0);
-
-  // top gastos individuais
   const topGastos = [...allDespesas].sort((a,b)=>Math.abs(b.valor)-Math.abs(a.valor)).slice(0,8);
 
-  // fluxo diário (contas) — receitas x despesas por dia
   const byDay = {};
-  contaTx.forEach(l=>{
-    byDay[l.data] = byDay[l.data] || {r:0,d:0};
-    if(l.valor>0) byDay[l.data].r += l.valor; else byDay[l.data].d += Math.abs(l.valor);
-  });
+  contaTx.forEach(l=>{ byDay[l.data] = byDay[l.data] || {r:0,d:0}; if(l.valor>0) byDay[l.data].r += l.valor; else byDay[l.data].d += Math.abs(l.valor); });
   const days = Object.keys(byDay).sort();
   const maxDay = Math.max(...days.map(d=>Math.max(byDay[d].r, byDay[d].d)), 1);
 
+  // mini-gráfico de saldo do mês (contas combinadas)
+  const fluxoRows = computeDailyCashflow(null).filter(r=>r.data.slice(0,7)===month);
+  // orçamento mensal (despesas) por grupo
+  const orcGrp = {};
+  state.orcamento.forEach(line=>{
+    const c = catById(line.categoriaId);
+    if(c.tipo!=='despesa') return;
+    const o = line.valores[month];
+    if(!o) return;
+    const g = orcGrp[c.grupo] = orcGrp[c.grupo] || {o:0, r:0};
+    g.o += o; g.r += Math.abs(realizadoForLine(line, month));
+  });
+  const orcArr = Object.entries(orcGrp).sort((a,b)=>b[1].o-a[1].o);
+  const orcTotO = orcArr.reduce((s,[,v])=>s+v.o,0), orcTotR = orcArr.reduce((s,[,v])=>s+v.r,0);
+  const progClass = (p)=> p>100 ? 'bad' : (p>85 ? 'warn' : 'ok');
+  const orcHtml = orcArr.length===0 ? '<div class="empty">Nenhum orçamento de despesa neste mês</div>' : `
+    <div class="mvsub" style="margin:0 0 12px;">Realizado ${fmt(orcTotR)} de ${fmt(orcTotO)} orçados (${orcTotO>0?Math.round(orcTotR/orcTotO*100):0}%)</div>
+    ${orcArr.slice(0,6).map(([g,v])=>{ const p = v.o>0 ? v.r/v.o*100 : 0; return `<div style="margin-bottom:14px;"><div style="display:flex; justify-content:space-between; gap:10px; font-size:14px;"><b>${g}</b><span class="mvsub" style="margin:0">${fmt(v.r)} / ${fmt(v.o)}</span></div><div class="progress ${progClass(p)}"><span style="width:${Math.min(100,p).toFixed(1)}%"></span></div></div>`; }).join('')}
+    ${orcArr.length>6 ? `<div class="mvsub">+ ${orcArr.length-6} grupo(s) em Orçamentos</div>`:''}`;
+  const ultimas = state.lancamentos.slice().sort((a,b)=>b.data.localeCompare(a.data)||b.id-a.id).slice(0,8);
+
   return `
-    <div class="topbar">
-      <div><h1>Dashboard</h1><div class="sub">Mês de referência: ${monthLabel(month)}${month===cur?' (atual)':''} · dados até ${fmtDate(dataBase())}</div></div>
-    </div>
+    <div class="topbar"><div class="sub">Mês de referência: ${monthLabel(month)}${month===cur?' (atual)':''} · dados até ${fmtDate(dataBase())}</div></div>
     <div class="monthtabs" id="dashMonthTabs">
       ${months.map(m=>`<button data-m="${m}" class="${m===month?'active':''}">${monthLabel(m)}${m===cur?' •':''}</button>`).join('')}
     </div>
-    <div class="readme-box"><b>Como ler:</b> este painel usa os lançamentos de contas (extratos) e cartões (faturas) do mês selecionado. Itens sem correspondência no orçamento original ficam no grupo <b>"Outros (não orçado)"</b>. Ao abrir o app, o dashboard sempre volta pro mês atual — use as abas acima pra conferir como fechou algum mês específico.</div>
     <div class="tiles">
-      <div class="tile"><div class="label">Receitas do mês</div><div class="value pos">${fmt(totalReceita)}</div></div>
-      <div class="tile"><div class="label">Despesas do mês</div><div class="value neg">${fmt(totalDespesa)}</div></div>
-      <div class="tile"><div class="label">Saldo do mês</div><div class="value ${saldoMes>=0?'pos':'neg'}">${fmt(saldoMes)}</div></div>
-      <div class="tile"><div class="label">Saldo total em contas (hoje)</div><div class="value">${fmt(saldoContas)}</div></div>
+      <div class="tile has-chip"><span class="chip purple">${icon('wallet',24)}</span><div class="label">Saldo disponível</div><div class="value">${fmt(saldoContas)}</div><div class="hint">${state.accounts.length} contas · hoje</div></div>
+      <div class="tile has-chip"><span class="chip green">${icon('up',24)}</span><div class="label">Receitas no mês</div><div class="value">${fmt(totalReceita)}</div><div class="hint">${monthLabel(month)}</div></div>
+      <div class="tile has-chip"><span class="chip orange">${icon('down',24)}</span><div class="label">Despesas no mês</div><div class="value">${fmt(totalDespesa)}</div><div class="hint">contas + cartões</div></div>
+      <div class="tile has-chip"><span class="chip ${saldoMes>=0?'blue':'rose'}">${icon('target',24)}</span><div class="label">Resultado do mês</div><div class="value ${saldoMes>=0?'pos':'neg'}">${fmt(saldoMes)}</div><div class="hint">receitas − despesas</div></div>
+    </div>
+    <div class="grid2">
+      <div class="card">
+        <div class="cardhead"><h2>Fluxo de caixa</h2><button class="btn secondary" type="button" data-goto="fluxo">Ver detalhes</button></div>
+        <div class="cardsub">Evolução do saldo em ${monthLabel(month)}</div>
+        ${saldoAreaChart(fluxoRows, {h:240, fs:18})}
+      </div>
+      <div class="card">
+        <div class="cardhead"><h2>Orçamento mensal</h2><button class="btn secondary" type="button" data-goto="orcado">Ver orçamentos</button></div>
+        <div class="cardsub">Despesas realizadas × orçadas, por grupo</div>
+        ${orcHtml}
+      </div>
+    </div>
+    <div class="card">
+      <div class="cardhead"><h2>Últimas movimentações</h2><button class="btn secondary" type="button" data-goto="lancamentos">Ver todas</button></div>
+      <div class="mvlist">${ultimas.map(mvRowSimpleHTML).join('') || '<div class="empty">Sem lançamentos</div>'}</div>
     </div>
     <div class="card">
       <h2>Despesas por categoria <small>contas + cartões, ${monthLabel(month)}</small></h2>
@@ -3855,7 +4314,7 @@ function viewDashboard(){
     <div class="grid2">
       <div class="card">
         <h2>Despesas por grupo <small>contas + cartões, ${monthLabel(month)}</small></h2>
-        ${grupoArr.map(([g,v],i)=>`
+        ${grupoArr.map(([g,v])=>`
           <div class="barrow" data-tip="${g}: ${fmt(v)}">
             <div class="lbl">${g}</div>
             <div class="track"><div class="fill" style="width:${(v/maxGrupo*100).toFixed(1)}%; background:${slotColor(0)}"></div></div>
@@ -3877,9 +4336,12 @@ function viewDashboard(){
         <span><span class="sw" style="background:${cssVar('--s8')}"></span>Despesas</span>
       </div>
     </div>
-    <div class="footprint">Painel gerado a partir dos extratos/faturas fornecidos · valores parciais para meses em andamento</div>
+    <details class="card" style="padding:14px 20px;"><summary style="cursor:pointer; font-weight:600;">Como ler este painel</summary>
+      <div class="sub" style="margin-top:10px;">Este painel usa os lançamentos de contas (extratos) e cartões (faturas) do mês selecionado. Itens sem correspondência no orçamento original ficam no grupo "Outros (não orçado)". Ao abrir o app, o painel sempre volta pro mês atual — use as abas de mês pra conferir como fechou algum mês específico. Valores parciais para meses em andamento.</div>
+    </details>
   `;
 }
+
 
 function wireDashboard(){
   document.querySelectorAll('#dashMonthTabs button').forEach(b=>{
@@ -3942,64 +4404,138 @@ function categoriaDonutChart(entries, total){
 }
 
 // ===================== Lançamentos =====================
+// ===================== Movimentações =====================
+let mvF = {q:'', tipo:'todos', cat:'', origem:'', de:'', ate:'', lim:60};
+function mvFiltrados(){
+  const q = mvF.q.trim().toLowerCase();
+  return state.lancamentos.filter(l=>{
+    const c = catById(l.categoriaId);
+    if(q && !(l.descricao.toLowerCase().includes(q) || c.nome.toLowerCase().includes(q) || c.grupo.toLowerCase().includes(q))) return false;
+    if(mvF.tipo==='entrada' && !(l.valor>0)) return false;
+    if(mvF.tipo==='saida' && !(l.valor<0)) return false;
+    if(mvF.tipo==='transf' && c.tipo!=='transferencia') return false;
+    if(mvF.cat && l.categoriaId!==mvF.cat && !(l.rateio||[]).some(p=>p.categoriaId===mvF.cat)) return false;
+    if(mvF.origem && (l.origemTipo+':'+l.origemId)!==mvF.origem) return false;
+    if(mvF.de && l.data<mvF.de) return false;
+    if(mvF.ate && l.data>mvF.ate) return false;
+    return true;
+  }).sort((a,b)=>b.data.localeCompare(a.data)||b.id-a.id);
+}
+function mvRowHTML(l){
+  const travado = mesFechado(lancMonth(l));
+  const origemInfo = l.origemTipo==='cartao' ? `${mvOrigemNome(l)} · fatura ${monthLabel(l.fatura)}` : mvOrigemNome(l);
+  return `<div class="mvrow">
+    <div class="mvmain">
+      <div class="mvtitle">${l.descricao}</div>
+      <div class="mvsub">${fmtDate(l.data)} · ${l.origemTipo==='cartao'?'💳':'🏦'} ${origemInfo}</div>
+      <div class="mvctl">${categoriaCellHTML(l)} ${competenciaCellHTML(l)}</div>
+    </div>
+    <div class="mvside">
+      <div class="mvval ${l.valor>=0?'pos':'neg'}">${fmt(l.valor)}</div>
+      <button class="iconmini del" type="button" data-del-lanc="${l.id}" title="${travado?'Mês fechado':'Excluir'}"${travado?' disabled':''}>${icon('trash',16)}</button>
+    </div>
+  </div>`;
+}
+function mvListHTML(){
+  const all = mvFiltrados();
+  const reais = all.filter(l=>catById(l.categoriaId).tipo!=='transferencia');
+  const ent = reais.filter(l=>l.valor>0).reduce((s,l)=>s+l.valor,0);
+  const sai = reais.filter(l=>l.valor<0).reduce((s,l)=>s+l.valor,0);
+  const shown = all.slice(0, mvF.lim);
+  return `
+    <div class="mvsub" style="margin-bottom:6px;">${all.length} movimentaç${all.length===1?'ão':'ões'} · entradas ${fmt(ent)} · saídas ${fmt(sai)} <span title="Transferências entre contas não entram na soma">(sem transferências)</span></div>
+    <div class="mvlist">${shown.map(mvRowHTML).join('') || '<div class="empty">Nenhuma movimentação encontrada com esses filtros.</div>'}</div>
+    ${all.length>shown.length ? `<div style="text-align:center; margin-top:14px;"><button class="btn secondary" type="button" id="mvMais">Mostrar mais (${all.length-shown.length} restantes)</button></div>` : ''}`;
+}
+function renderMvList(){
+  const el = document.getElementById('mvListBody');
+  if(!el) return;
+  el.innerHTML = mvListHTML();
+  wireLinhasLancamento(el);
+  const mais = document.getElementById('mvMais');
+  if(mais) mais.addEventListener('click', ()=>{ mvF.lim += 60; renderMvList(); });
+}
+function wireMvFiltros(){
+  const bind = (id, key, ev)=>{ const el = document.getElementById(id); if(!el) return; el.addEventListener(ev||'change', ()=>{ mvF[key] = el.value; mvF.lim = 60; renderMvList(); }); };
+  bind('mvBusca','q','input'); bind('mvTipo','tipo'); bind('mvCat','cat'); bind('mvOrigem','origem'); bind('mvDe','de'); bind('mvAte','ate');
+  const lim = document.getElementById('btnMvLimpar');
+  if(lim) lim.addEventListener('click', ()=>{ mvF = {q:'', tipo:'todos', cat:'', origem:'', de:'', ate:'', lim:60}; render(); });
+  renderMvList();
+}
 function viewLancamentos(){
   const cats = state.categories;
   const msg = flashMsg;
-  flashMsg = null; // mostra só uma vez, na renderização logo depois de salvar
+  flashMsg = null;
+  const grupos = [...new Set(cats.map(c=>c.grupo))];
   return `
-    <div class="topbar">
-      <div><h1>Lançamentos</h1><div class="sub">Todos os lançamentos de contas e cartões — adicione, edite ou remova aqui</div></div>
-    </div>
+    <div class="topbar"><div class="sub">Todas as movimentações de contas e cartões — pesquise, filtre, categorize ou lance algo novo</div></div>
     ${msg ? `<div class="flashmsg">${msg}</div>` : ''}
-    <div class="card">
-      <h2>📷 Lançar por foto do cupom fiscal <small>leitura automática — beta</small></h2>
-      <div class="ocrbox" id="ocrBox">
-        <input type="file" id="ocrFile" accept="image/*" capture="environment" style="display:none">
-        <button class="btn secondary" id="btnOcr" type="button">📷 Tirar foto ou escolher cupom</button>
-        <div class="ocrstatus" id="ocrStatus">Tira uma foto do cupom (ou escolhe uma da galeria) que eu tento achar o valor e a data pra preencher o formulário abaixo.</div>
+    <div class="filtergrid">
+      <div><label>Buscar</label><input type="text" id="mvBusca" placeholder="Descrição ou categoria" value="${mvF.q.replace(/"/g,'&quot;')}"></div>
+      <div><label>Tipo</label><select id="mvTipo">
+        ${[['todos','Todos'],['entrada','Entradas'],['saida','Saídas'],['transf','Transferências']].map(([v,l])=>`<option value="${v}" ${mvF.tipo===v?'selected':''}>${l}</option>`).join('')}</select></div>
+      <div><label>Categoria</label><select id="mvCat"><option value="">Todas</option>
+        ${grupos.map(g=>`<optgroup label="${g}">${cats.filter(c=>c.grupo===g).map(c=>`<option value="${c.id}" ${mvF.cat===c.id?'selected':''}>${c.nome}</option>`).join('')}</optgroup>`).join('')}</select></div>
+      <div><label>Conta / cartão</label><select id="mvOrigem"><option value="">Todos</option>
+        <optgroup label="Contas">${state.accounts.map(a=>`<option value="conta:${a.id}" ${mvF.origem==='conta:'+a.id?'selected':''}>${a.name}</option>`).join('')}</optgroup>
+        <optgroup label="Cartões">${state.cards.map(c=>`<option value="cartao:${c.id}" ${mvF.origem==='cartao:'+c.id?'selected':''}>${c.name}</option>`).join('')}</optgroup></select></div>
+      <div><label>De</label><input type="date" id="mvDe" value="${mvF.de}"></div>
+      <div><label>Até</label><input type="date" id="mvAte" value="${mvF.ate}"></div>
+      <div style="display:flex; align-items:flex-end;"><button class="btn secondary" type="button" id="btnMvLimpar">Limpar filtros</button></div>
+    </div>
+    <details class="card" id="detNovo" style="padding:14px 22px;">
+      <summary style="cursor:pointer; font-weight:700; font-size:16px; display:flex; align-items:center; gap:10px;">${icon('plus',18)} Novo lançamento · transferência · foto de cupom</summary>
+      <div style="margin-top:16px;">
+      <div class="card">
+        <h2>📷 Lançar por foto do cupom fiscal <small>leitura automática — beta</small></h2>
+        <div class="ocrbox" id="ocrBox">
+          <input type="file" id="ocrFile" accept="image/*" capture="environment" style="display:none">
+          <button class="btn secondary" id="btnOcr" type="button">📷 Tirar foto ou escolher cupom</button>
+          <div class="ocrstatus" id="ocrStatus">Tira uma foto do cupom (ou escolhe uma da galeria) que eu tento achar o valor e a data pra preencher o formulário abaixo.</div>
+        </div>
       </div>
-    </div>
-    <div class="card">
-      <h2>Novo lançamento</h2>
-      <div class="sub" style="margin:-6px 0 12px;">Para lançamentos que já vieram de um extrato ou fatura importada, prefira categorizar direto nas telas "Extratos por conta" e "Faturas por cartão" — este formulário é só para incluir manualmente algo novo.</div>
-      <form id="formNovo">
-        <div class="formrow">
-          <div><label>Data</label><input type="date" name="data" required value="${dataBase()}"></div>
-          <div><label>Origem</label>
-            <select name="origemTipo" id="selOrigemTipo">
-              <option value="conta">Conta</option>
-              <option value="cartao">Cartão</option>
-            </select>
+      <div class="card">
+        <h2>Novo lançamento</h2>
+        <div class="sub" style="margin:-6px 0 12px;">Para o que já veio de extrato ou fatura importada, categorize direto na lista de movimentações (ou em Contas / Cartões) — este formulário é para incluir algo novo.</div>
+        <form id="formNovo">
+          <div class="formrow">
+            <div><label>Data</label><input type="date" name="data" required value="${dataBase()}"></div>
+            <div><label>Origem</label>
+              <select name="origemTipo" id="selOrigemTipo"><option value="conta">Conta</option><option value="cartao">Cartão</option></select>
+            </div>
+            <div><label>Conta/Cartão</label><select name="origemId" id="selOrigemId"></select></div>
+            <div><label>Descrição</label><input type="text" name="descricao" placeholder="Ex: Supermercado" required></div>
+            <div><label>Categoria</label>
+              <select name="categoriaId">${cats.map(c=>`<option value="${c.id}">${c.grupo} — ${c.nome}</option>`).join('')}</select>
+            </div>
+            <div><label>Valor (use - p/ despesa)</label><input type="number" step="0.01" name="valor" placeholder="-50.00" required></div>
+            <div id="grpParcelas"><label>Parcelas <small>(só cartão)</small></label><input type="number" name="parcelas" min="1" step="1" value="1"></div>
+            <div><label>Competência <small>(mês de referência)</small></label><input type="month" name="competencia" id="inpCompetencia"></div>
+            <div><button class="btn" type="submit">Adicionar</button></div>
           </div>
-          <div><label>Conta/Cartão</label><select name="origemId" id="selOrigemId"></select></div>
-          <div><label>Descrição</label><input type="text" name="descricao" placeholder="Ex: Supermercado" required></div>
-          <div><label>Categoria</label>
-            <select name="categoriaId">${cats.map(c=>`<option value="${c.id}">${c.grupo} — ${c.nome}</option>`).join('')}</select>
+        </form>
+      </div>
+      <div class="card">
+        <h2>🔁 Transferência entre contas <small>ex: banco → carteira</small></h2>
+        <div class="sub" style="margin:-6px 0 12px;">Move dinheiro entre suas próprias contas — não entra como receita nem despesa nos relatórios.</div>
+        <form id="formTransfer">
+          <div class="formrow">
+            <div><label>Data</label><input type="date" name="data" required value="${dataBase()}"></div>
+            <div><label>De</label><select name="deId">${state.accounts.map(a=>`<option value="${a.id}">${a.name}</option>`).join('')}</select></div>
+            <div><label>Para</label><select name="paraId">${state.accounts.map(a=>`<option value="${a.id}">${a.name}</option>`).join('')}</select></div>
+            <div><label>Valor</label><input type="number" step="0.01" min="0.01" name="valor" placeholder="100.00" required></div>
+            <div><label>Descrição (opcional)</label><input type="text" name="descricao" placeholder="Ex: Saque no caixa eletrônico"></div>
+            <div><button class="btn" type="submit">🔁 Transferir</button></div>
           </div>
-          <div><label>Valor (use - p/ despesa)</label><input type="number" step="0.01" name="valor" placeholder="-50.00" required></div>
-          <div id="grpParcelas"><label>Parcelas <small>(só cartão)</small></label><input type="number" name="parcelas" min="1" step="1" value="1"></div>
-          <div><label>Competência <small>(mês de referência)</small></label><input type="month" name="competencia" id="inpCompetencia"></div>
-          <div><button class="btn" type="submit">Adicionar</button></div>
-        </div>
-      </form>
-    </div>
+        </form>
+      </div>
+      </div>
+    </details>
     <div class="card">
-      <h2>🔁 Transferência entre contas <small>ex: banco → carteira</small></h2>
-      <div class="sub" style="margin:-6px 0 12px;">Move dinheiro entre suas próprias contas — não entra como receita nem despesa nos relatórios.</div>
-      <form id="formTransfer">
-        <div class="formrow">
-          <div><label>Data</label><input type="date" name="data" required value="${dataBase()}"></div>
-          <div><label>De</label><select name="deId">${state.accounts.map(a=>`<option value="${a.id}">${a.name}</option>`).join('')}</select></div>
-          <div><label>Para</label><select name="paraId">${state.accounts.map(a=>`<option value="${a.id}">${a.name}</option>`).join('')}</select></div>
-          <div><label>Valor</label><input type="number" step="0.01" min="0.01" name="valor" placeholder="100.00" required></div>
-          <div><label>Descrição (opcional)</label><input type="text" name="descricao" placeholder="Ex: Saque no caixa eletrônico"></div>
-          <div><button class="btn" type="submit">🔁 Transferir</button></div>
-        </div>
-      </form>
+      <div class="cardhead"><h2>Movimentações</h2><span class="sub">categoria e competência editáveis direto na linha</span></div>
+      <div id="mvListBody"></div>
     </div>
-    <div class="card">
-      <div class="sub">⚙️ O gerenciador de categorias (renomear, mudar grupo, criar novas) mudou de lugar — agora fica em <button type="button" class="linklike" data-goto-cadastro>Cadastro</button>.</div>
-    </div>
+    <div class="sub" style="margin:4px 4px 0;">Para renomear, mover ou criar categorias, use o <button type="button" class="linklike" data-goto="plano">Plano de contas</button>.</div>
   `;
 }
 
@@ -4105,6 +4641,7 @@ function parseCupomText(text){
 }
 
 function wireLancamentos(){
+  wireMvFiltros();
   refreshOrigemOptions();
   document.getElementById('selOrigemTipo').addEventListener('change', refreshOrigemOptions);
   document.getElementById('formNovo').querySelector('[name=data]').addEventListener('change', atualizarCompetenciaSugerida);
@@ -4169,7 +4706,7 @@ function wireLancamentos(){
       gerarParcelasFuturas({...item, descricaoBase}, totalParcelas);
     }
     const origemNome = origemTipo==='conta' ? accById(item.origemId).name : cardById(item.origemId).name;
-    flashMsg = `✅ Lançamento adicionado: "${item.descricao}" — ${fmt(item.valor)} em ${origemNome}. ${origemTipo==='conta' ? 'Confira em "Extratos por conta".' : 'Confira em "Faturas por cartão".'}`;
+    flashMsg = `✅ Lançamento adicionado: "${item.descricao}" — ${fmt(item.valor)} em ${origemNome}. ${origemTipo==='conta' ? 'Confira em "Contas".' : 'Confira em "Cartões".'}`;
     e.target.querySelector('[name=parcelas]').value = 1;
     document.getElementById('inpCompetencia').dataset.tocado = '';
     render();
@@ -4231,10 +4768,146 @@ function wireCatMgr(){
   });
 }
 
+// ===================== Plano de contas =====================
+// Contas principais (grupos) com subcontas (categorias). As subcontas de sistema (sys_*) aparecem
+// travadas. Grupos sem nenhuma subconta ficam guardados em state.planoGrupos.
+let planoAbertos = new Set();
+function planoUsos(catId){
+  const nL = state.lancamentos.filter(l=>rateioOf(l).some(p=>p.categoriaId===catId)).length;
+  const nO = state.orcamento.filter(o=>o.categoriaId===catId).length;
+  return {nL, nO, total:nL+nO};
+}
+function planoGruposLista(){
+  const mapa = {};
+  state.categories.forEach(c=>{
+    if(c.id.startsWith('sys_') && c.id!=='sys_transferencia') return; // ajuste de saldo / empréstimo: ficam fora do plano
+    (mapa[c.grupo] = mapa[c.grupo]||[]).push(c);
+  });
+  (state.planoGrupos||[]).forEach(g=>{ if(!mapa[g]) mapa[g] = []; });
+  return Object.keys(mapa).sort((a,b)=>a.localeCompare(b,'pt-BR')).map(nome=>({
+    nome, subs: mapa[nome].slice().sort((a,b)=>a.nome.localeCompare(b.nome,'pt-BR')),
+  }));
+}
+function viewPlano(){
+  const grupos = planoGruposLista();
+  const tipoOpts = (t)=>`<option value="despesa" ${t==='despesa'?'selected':''}>Despesa</option><option value="receita" ${t==='receita'?'selected':''}>Receita</option><option value="transferencia" ${t==='transferencia'?'selected':''}>Transferência</option>`;
+  const grupoOpts = (sel)=>grupos.map(g=>`<option value="${g.nome}" ${g.nome===sel?'selected':''}>${g.nome}</option>`).join('');
+  return `
+    <div class="topbar">
+      <div><h1>Plano de contas</h1><div class="sub">Clique em uma conta para visualizar e administrar suas subcontas.</div></div>
+    </div>
+    <div class="card">
+      <h2>Contas do plano</h2>
+      <div class="cardsub">Cada conta principal agrupa subcontas (as categorias usadas nos lançamentos e no orçamento).</div>
+      ${grupos.map(g=>{
+        const usosGrupo = g.subs.reduce((s,c)=>s+planoUsos(c.id).total,0);
+        const temSys = g.subs.some(c=>c.id.startsWith('sys_'));
+        return `<details class="pgroup" data-pgroup="${g.nome}" ${planoAbertos.has(g.nome)?'open':''}>
+          <summary>
+            <span class="pbar"></span>
+            <span class="chev">${icon('chev',20)}</span>
+            <span style="flex:1; min-width:0;"><div class="pname">${g.nome}</div><div class="pcount">${g.subs.length} subconta${g.subs.length===1?'':'s'}</div></span>
+            <button type="button" class="iconmini" data-pg-rename="${g.nome}" title="Renomear conta principal" ${temSys&&g.subs.length===1?'disabled':''}>${icon('pencil',16)}</button>
+            <button type="button" class="iconmini del" data-pg-del="${g.nome}" title="${usosGrupo||temSys?'Só dá pra excluir quando não há lançamentos/orçamento associados':'Excluir conta principal'}" ${usosGrupo||temSys?'disabled':''}>${icon('trash',16)}</button>
+          </summary>
+          <div class="psubs">
+            ${g.subs.length===0 ? '<div class="sub" style="padding:10px 0;">Nenhuma subconta ainda — use "Adicionar ao plano" abaixo.</div>' : g.subs.map(c=>{
+              const sys = c.id.startsWith('sys_');
+              const u = planoUsos(c.id);
+              const usoTxt = u.total ? `${u.nL} lanç.${u.nO?` · ${u.nO} orç.`:''}` : 'sem uso';
+              if(sys) return `<div class="psub"><div><b>${c.nome}</b> <span class="sysbadge">sistema</span></div><div class="uses">${c.tipo==='transferencia'?'Transferência':c.tipo}</div><div class="uses">${usoTxt}</div><div></div></div>`;
+              return `<div class="psub">
+                <input type="text" data-pc-nome="${c.id}" value="${c.nome.replace(/"/g,'&quot;')}">
+                <select class="inlinesel" data-pc-tipo="${c.id}" style="max-width:none;">${tipoOpts(c.tipo)}</select>
+                <span class="uses">${usoTxt}</span>
+                <span style="display:flex; gap:6px; align-items:center;">
+                  <select class="inlinesel" data-pc-grupo="${c.id}" title="Mover para outra conta principal" style="max-width:150px;">${grupoOpts(c.grupo)}</select>
+                  <button type="button" class="iconmini del" data-pc-del="${c.id}" ${u.total?'disabled':''} title="${u.total?'Há lançamentos/orçamento nesta subconta — reatribua antes de excluir':'Excluir subconta'}">${icon('trash',16)}</button>
+                </span>
+              </div>`;
+            }).join('')}
+          </div>
+        </details>`;
+      }).join('')}
+    </div>
+    <div class="card">
+      <h2>Adicionar ao plano</h2>
+      <div class="cardsub">Crie uma conta principal ou escolha onde incluir uma subconta.</div>
+      <div class="filtergrid" style="background:transparent; border:none; padding:0;">
+        <div><label>Nome</label><input type="text" id="plNome" placeholder="Ex: Pets"></div>
+        <div><label>Tipo</label><select id="plTipo"><option value="despesa">Despesa</option><option value="receita">Receita</option><option value="transferencia">Transferência</option></select></div>
+        <div><label>Conta principal</label><select id="plGrupo"><option value="">Criar como conta principal</option>${grupoOpts('')}</select></div>
+        <div style="display:flex; align-items:flex-end;"><button class="btn" type="button" id="btnPlAdd" style="width:100%;">Adicionar conta</button></div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Como funciona</h2>
+      <div class="cardsub">As subcontas ficam recolhidas para facilitar a visualização. A exclusão é permitida somente quando não existem lançamentos nem linhas de orçamento associados. Subcontas marcadas como "sistema" são usadas pelo próprio app (ex.: transferência entre contas) e não podem ser alteradas.</div>
+    </div>
+  `;
+}
+function wirePlano(){
+  document.querySelectorAll('[data-pgroup]').forEach(d=>{
+    d.addEventListener('toggle', ()=>{ if(d.open) planoAbertos.add(d.dataset.pgroup); else planoAbertos.delete(d.dataset.pgroup); });
+  });
+  document.querySelectorAll('.pgroup > summary button').forEach(b=> b.addEventListener('click', e=>{ e.stopPropagation(); }));
+  document.querySelectorAll('[data-pg-rename]').forEach(b=> b.addEventListener('click', e=>{
+    e.preventDefault(); e.stopPropagation();
+    const antigo = b.dataset.pgRename;
+    const novo = (prompt(`Novo nome para a conta principal "${antigo}":`, antigo)||'').trim();
+    if(!novo || novo===antigo) return;
+    state.categories.forEach(c=>{ if(c.grupo===antigo) c.grupo = novo; });
+    state.planoGrupos = (state.planoGrupos||[]).map(g=>g===antigo?novo:g);
+    if(planoAbertos.delete(antigo)) planoAbertos.add(novo);
+    render();
+  }));
+  document.querySelectorAll('[data-pg-del]').forEach(b=> b.addEventListener('click', e=>{
+    e.preventDefault(); e.stopPropagation();
+    const g = b.dataset.pgDel;
+    if(!confirm(`Excluir a conta principal "${g}" e suas subcontas (nenhuma está em uso)?`)) return;
+    state.categories = state.categories.filter(c=>c.grupo!==g);
+    state.planoGrupos = (state.planoGrupos||[]).filter(x=>x!==g);
+    planoAbertos.delete(g);
+    render();
+  }));
+  document.querySelectorAll('[data-pc-nome]').forEach(inp=> inp.addEventListener('change', ()=>{
+    const c = catById(inp.dataset.pcNome); const v = inp.value.trim();
+    if(c && v){ c.nome = v; render(); }
+  }));
+  document.querySelectorAll('[data-pc-tipo]').forEach(sel=> sel.addEventListener('change', ()=>{
+    const c = catById(sel.dataset.pcTipo); if(c){ c.tipo = sel.value; render(); }
+  }));
+  document.querySelectorAll('[data-pc-grupo]').forEach(sel=> sel.addEventListener('change', ()=>{
+    const c = catById(sel.dataset.pcGrupo); if(c){ c.grupo = sel.value; planoAbertos.add(sel.value); render(); }
+  }));
+  document.querySelectorAll('[data-pc-del]').forEach(b=> b.addEventListener('click', ()=>{
+    const id = b.dataset.pcDel; const u = planoUsos(id);
+    if(u.total){ alert('Há lançamentos ou orçamento nesta subconta — reatribua-os antes de excluir.'); return; }
+    state.categories = state.categories.filter(c=>c.id!==id);
+    render();
+  }));
+  document.getElementById('btnPlAdd').addEventListener('click', ()=>{
+    const nome = document.getElementById('plNome').value.trim();
+    const tipo = document.getElementById('plTipo').value;
+    const grupo = document.getElementById('plGrupo').value;
+    if(!nome){ alert('Digite um nome.'); return; }
+    if(!grupo){
+      if(planoGruposLista().some(g=>g.nome.toLowerCase()===nome.toLowerCase())){ alert('Já existe uma conta principal com esse nome.'); return; }
+      state.planoGrupos = (state.planoGrupos||[]).concat([nome]);
+      planoAbertos.add(nome);
+    } else {
+      if(state.categories.some(c=>c.grupo===grupo && c.nome.toLowerCase()===nome.toLowerCase())){ alert('Essa subconta já existe nessa conta principal.'); return; }
+      const id = 'custom_' + planoSlug(nome) + '_' + Date.now().toString(36);
+      state.categories.push({id, nome, grupo, tipo});
+      planoAbertos.add(grupo);
+    }
+    render();
+  });
+}
+
 // ===================== Cadastro (vencimento de cartões, categorias, fechamento de mês) =====================
 function viewCadastro(){
-  const catsGerenciaveis = state.categories.filter(c=>!c.id.startsWith('sys_'));
-  const mesesFechadosOrdenados = [...state.mesesFechados].sort().reverse();
+    const mesesFechadosOrdenados = [...state.mesesFechados].sort().reverse();
   return `
     <div class="topbar">
       <div><h1>Cadastro</h1><div class="sub">Configurações do app: vencimento dos cartões, categorias e fechamento de mês</div></div>
@@ -4268,26 +4941,7 @@ function viewCadastro(){
     </div>
     <div class="card">
       <h2>🏷️ Categorias</h2>
-      <div class="sub" style="margin:-4px 0 12px;">Renomeie, mude o grupo/tipo ou crie novas categorias.</div>
-      <div class="catmgr" id="catMgr">
-        <div class="catmgr-row" style="font-size:11px; color:var(--text-muted); font-weight:600;"><div>Nome</div><div>Grupo</div><div>Tipo</div><div></div></div>
-        ${catsGerenciaveis.map(c=>`
-          <div class="catmgr-row">
-            <input type="text" data-cat-nome="${c.id}" value="${c.nome}">
-            <input type="text" data-cat-grupo="${c.id}" value="${c.grupo}">
-            <select data-cat-tipo="${c.id}">
-              <option value="despesa" ${c.tipo==='despesa'?'selected':''}>Despesa</option>
-              <option value="receita" ${c.tipo==='receita'?'selected':''}>Receita</option>
-            </select>
-            <button class="btn danger" style="padding:4px 8px; font-size:11px" data-cat-del="${c.id}">Excluir</button>
-          </div>`).join('')}
-        <div class="catmgr-row" style="margin-top:10px; border-top:1px solid var(--border); padding-top:10px;">
-          <input type="text" id="novaCatNome" placeholder="Nova categoria...">
-          <input type="text" id="novaCatGrupo" placeholder="Grupo...">
-          <select id="novaCatTipo"><option value="despesa">Despesa</option><option value="receita">Receita</option></select>
-          <button class="btn secondary" id="btnAddCat">+ Adicionar</button>
-        </div>
-      </div>
+      <div class="cardsub">O gerenciador de categorias agora é o <button type="button" class="linklike" data-goto-plano>Plano de contas</button> — contas principais e subcontas.</div>
     </div>
   `;
 }
@@ -4317,7 +4971,7 @@ function wireCadastro(){
       if(card){ const v = parseInt(inp.value); card.diaVencimento = (v>=1 && v<=31) ? v : null; render(); }
     });
   });
-  wireCatMgr();
+  const gp = document.querySelector('[data-goto-plano]'); if(gp) gp.addEventListener('click', ()=> goTab('plano'));
 }
 
 // Exclui um lançamento (usado nas telas de Extratos e Faturas). Se ele fizer parte de uma
@@ -4725,10 +5379,10 @@ function viewOrcado(){
       </div>
     </div>
     <div class="tiles">
-      <div class="tile"><div class="label">Receitas orçadas</div><div class="value">${fmt(totalOrcReceita)}</div></div>
-      <div class="tile"><div class="label">Receitas realizadas</div><div class="value pos">${fmt(totalRealReceita)}</div></div>
-      <div class="tile"><div class="label">Despesas orçadas</div><div class="value">${fmt(totalOrcDespesa)}</div></div>
-      <div class="tile"><div class="label">Despesas realizadas</div><div class="value neg">${fmt(totalRealDespesa)}</div></div>
+      <div class="tile has-chip"><span class="chip purple">${icon('target',24)}</span><div class="label">Receitas orçadas</div><div class="value">${fmt(totalOrcReceita)}</div></div>
+      <div class="tile has-chip"><span class="chip green">${icon('up',24)}</span><div class="label">Receitas realizadas</div><div class="value pos">${fmt(totalRealReceita)}</div></div>
+      <div class="tile has-chip"><span class="chip purple">${icon('target',24)}</span><div class="label">Despesas orçadas</div><div class="value">${fmt(totalOrcDespesa)}</div></div>
+      <div class="tile has-chip"><span class="chip orange">${icon('down',24)}</span><div class="label">Despesas realizadas</div><div class="value">${fmt(totalRealDespesa)}</div></div>
     </div>
     <div class="card">
       ${grupoBlocks.length===0 ? `<div class="empty">Nenhum registro encontrado com esses filtros.</div>` : grupoBlocks.map(gb=>`
@@ -4736,6 +5390,7 @@ function viewOrcado(){
         <summary>
           <span>${gb.grupo} <span class="sub">(${gb.catRows.length} categoria${gb.catRows.length>1?'s':''})</span></span>
           <span class="tot">Orçado ${fmt(gb.orcadoGrupo)} · Realizado ${fmt(gb.realGrupo)} · ${pctCellHTML(gb.pctGrupo, gb.tipoDominante)}</span>
+          ${gb.pctGrupo!==null ? `<div class="progress ${gb.tipoDominante==='receita' ? (gb.pctGrupo>=99.5?'ok':'warn') : (gb.pctGrupo>100.5?'bad':(gb.pctGrupo>85?'warn':'ok'))}" style="flex-basis:100%"><span style="width:${Math.min(100,gb.pctGrupo).toFixed(1)}%"></span></div>` : ''}
         </summary>
         <div class="body">
           <div class="tblwrap"><table>
@@ -5196,64 +5851,67 @@ function fluxoMesAMesTable(all){
     </tbody>
   </table></div>`;
 }
+let fluxoModo = 'dia';
 function viewFluxo(){
   if(!fluxoMonth) fluxoMonth = todayInfo().month;
   const contaSelecionada = fluxoConta ? accById(fluxoConta) : null;
   const all = computeDailyCashflow(fluxoConta);
   const rows = all.filter(r=>r.data.slice(0,7)===fluxoMonth);
-  const seletorConta = `<select class="inlinesel" id="fluxoContaSel" style="max-width:220px;">
+  const seletorConta = `<select class="inlinesel" id="fluxoContaSel" style="max-width:240px;">
     <option value="">Todas as contas</option>
     ${state.accounts.map(a=>`<option value="${a.id}" ${fluxoConta===a.id?'selected':''}>${a.name}</option>`).join('')}
   </select>`;
-
+  const subtitulo = contaSelecionada
+    ? `Saldo de ${contaSelecionada.name} — só o realizado (sem projeção de orçamento/fatura, que não pertence a uma conta específica até ser pago)`
+    : `Realizado até ${fmtDate(dataBase())}; depois disso, projetado pelo orçamento (inclusive vencimento de faturas de cartão)`;
+  const toolbar = `
+    <div class="toolbar">
+      <div class="segmented" id="fluxoModoSeg"><button data-modo="dia" class="${fluxoModo==='dia'?'active':''}">Dia a dia</button><button data-modo="mes" class="${fluxoModo==='mes'?'active':''}">Por mês</button></div>
+      ${seletorConta}
+    </div>`;
   if(all.length===0){
-    return `
-      <div class="topbar">
-        <div><h1>Fluxo de Caixa</h1><div class="sub">Saldo dia a dia e mês a mês, por conta ou combinado</div></div>
-      </div>
-      <div style="margin:-6px 0 16px;">${seletorConta}</div>
-      <div class="card"><div class="empty">${contaSelecionada ? `Sem lançamentos ainda em ${contaSelecionada.name}.` : 'Sem dados ainda.'}</div></div>
-    `;
+    return `<div class="topbar"><div class="sub">${subtitulo}</div></div>${toolbar}
+      <div class="card"><div class="empty">${contaSelecionada ? `Sem lançamentos ainda em ${contaSelecionada.name}.` : 'Sem dados ainda.'}</div></div>`;
   }
-
+  if(fluxoModo==='mes'){
+    return `<div class="topbar"><div class="sub">${subtitulo}</div></div>${toolbar}
+      <div class="card"><h2>Evolução do saldo <small>${contaSelecionada?contaSelecionada.name:'todas as contas'} · todo o período</small></h2>${saldoAreaChart(all)}</div>
+      <div class="card">
+        <h2>Fluxo mês a mês <small>clique no mês pra ver o detalhe dia a dia dele</small></h2>
+        ${fluxoMesAMesTable(all)}
+      </div>`;
+  }
   const saldoInicioMes = rows.length ? rows[0].saldoInicial : null;
   const saldoFimMes = rows.length ? rows[rows.length-1].saldoFinal : null;
   const totalEntradas = rows.reduce((s,r)=>s+r.entradas,0);
   const totalSaidas = rows.reduce((s,r)=>s+r.saidas,0);
-
   return `
-    <div class="topbar">
-      <div><h1>Fluxo de Caixa</h1><div class="sub">${contaSelecionada
-        ? `Saldo dia a dia de ${contaSelecionada.name} — só o realizado (sem projeção de orçamento/fatura, que não pertence a uma conta específica até ser pago)`
-        : `Saldo dia a dia — realizado até ${fmtDate(dataBase())}, projetado (orçamento, inclusive vencimento de faturas de cartão) depois disso`}</div></div>
-    </div>
-    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin:-6px 0 16px;">
-      ${seletorConta}
-    </div>
-    <div class="card">
-      <h2>Fluxo mês a mês <small>clique no mês pra ver o detalhe dia a dia dele abaixo</small></h2>
-      ${fluxoMesAMesTable(all)}
-    </div>
+    <div class="topbar"><div class="sub">${subtitulo}</div></div>
+    ${toolbar}
     <div class="monthtabs" id="fluxoMonthTabs">
       ${MESES_ORC.map(m=>`<button data-m="${m}" class="${m===fluxoMonth?'active':''}">${monthLabel(m)}</button>`).join('')}
     </div>
     <div class="tiles">
-      <div class="tile"><div class="label">Saldo início do mês</div><div class="value">${saldoInicioMes!==null?fmt(saldoInicioMes):'—'}</div></div>
-      <div class="tile"><div class="label">Entradas no mês</div><div class="value pos">${fmt(totalEntradas)}</div></div>
-      <div class="tile"><div class="label">Saídas no mês</div><div class="value neg">${fmt(totalSaidas)}</div></div>
-      <div class="tile"><div class="label">Saldo final do mês</div><div class="value ${saldoFimMes!==null&&saldoFimMes>=0?'pos':'neg'}">${saldoFimMes!==null?fmt(saldoFimMes):'—'}</div></div>
+      <div class="tile has-chip"><span class="chip purple">${icon('wallet',24)}</span><div class="label">Saldo no início do mês</div><div class="value">${saldoInicioMes!==null?fmt(saldoInicioMes):'—'}</div></div>
+      <div class="tile has-chip"><span class="chip green">${icon('up',24)}</span><div class="label">Entradas no mês</div><div class="value">${fmt(totalEntradas)}</div></div>
+      <div class="tile has-chip"><span class="chip orange">${icon('down',24)}</span><div class="label">Saídas no mês</div><div class="value">${fmt(totalSaidas)}</div></div>
+      <div class="tile has-chip"><span class="chip ${saldoFimMes!==null&&saldoFimMes<0?'rose':'blue'}">${icon('target',24)}</span><div class="label">Saldo no fim do mês</div><div class="value ${saldoFimMes!==null&&saldoFimMes>=0?'pos':'neg'}">${saldoFimMes!==null?fmt(saldoFimMes):'—'}</div></div>
     </div>
     ${rows.length===0 ? `<div class="card"><div class="empty">Sem dados neste mês${contaSelecionada?` para ${contaSelecionada.name}`:''}.</div></div>` : `
     <div class="card">
-      <h2>Fluxo sintético do mês <small>clique no número do dia pra ver o que compõe ele</small></h2>
+      <h2>Evolução do saldo <small>${monthLabel(fluxoMonth)}</small></h2>
+      ${saldoAreaChart(rows)}
+    </div>
+    <div class="card">
+      <h2>Demonstrativo <small>clique no número do dia pra ver o que compõe ele</small></h2>
       ${fluxoSinteticoTable(rows)}
     </div>
     <div class="card">
-      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:14px;">
-        <h2 style="margin:0;">Detalhe por dia <small>${fluxoView==='calendario' ? 'por vencimento — receitas e despesas do orçamento, mais o que já foi realizado' : ''}</small></h2>
-        <div class="monthtabs" id="fluxoViewToggle" style="margin-bottom:0;">
-          <button data-view="lista" class="${fluxoView==='lista'?'active':''}">📋 Lista</button>
-          <button data-view="calendario" class="${fluxoView==='calendario'?'active':''}">📅 Calendário</button>
+      <div class="cardhead">
+        <h2>Detalhe por dia <small>${fluxoView==='calendario' ? 'por vencimento — receitas e despesas do orçamento, mais o que já foi realizado' : ''}</small></h2>
+        <div class="segmented" id="fluxoViewToggle">
+          <button data-view="lista" class="${fluxoView==='lista'?'active':''}">Lista</button>
+          <button data-view="calendario" class="${fluxoView==='calendario'?'active':''}">Calendário</button>
         </div>
       </div>
       ${fluxoView==='calendario' ? calendarioFluxo(rows, fluxoMonth) : `
@@ -5263,9 +5921,9 @@ function viewFluxo(){
         ${rows.map(r=>`<tr>
           <td>${fmtDate(r.data)} ${r.isFuture?'<span class="tag">projetado</span>':''}</td>
           <td style="text-align:right">${fmt(r.saldoInicial)}</td>
-          <td style="text-align:right" class="${r.entradas>0?'val-pos':''}">${r.entradas>0?fmt(r.entradas):'—'}</td>
-          <td style="text-align:right">${r.saidas>0?fmt(-r.saidas):'—'}</td>
-          <td style="text-align:right; font-weight:600">${fmt(r.saldoFinal)}</td>
+          <td class="in">${r.entradas>0?fmt(r.entradas):'—'}</td>
+          <td class="out">${r.saidas>0?fmt(-r.saidas):'—'}</td>
+          <td style="text-align:right; font-weight:700">${fmt(r.saldoFinal)}</td>
           <td class="sub">${r.items.map(x=>x.descricao).join(', ')}</td>
         </tr>`).join('')}
         </tbody>
@@ -5278,11 +5936,14 @@ function viewFluxo(){
 function wireFluxo(){
   const contaSel = document.getElementById('fluxoContaSel');
   if(contaSel) contaSel.addEventListener('change', ()=>{ fluxoConta = contaSel.value || null; render(); });
+  document.querySelectorAll('#fluxoModoSeg button').forEach(b=>{
+    b.addEventListener('click', ()=>{ fluxoModo = b.dataset.modo; render(); });
+  });
   document.querySelectorAll('#fluxoMonthTabs button').forEach(b=>{
     b.addEventListener('click', ()=>{ fluxoMonth = b.dataset.m; render(); });
   });
   document.querySelectorAll('[data-mesamesjump]').forEach(b=>{
-    b.addEventListener('click', ()=>{ fluxoMonth = b.dataset.mesamesjump; render(); });
+    b.addEventListener('click', ()=>{ fluxoMonth = b.dataset.mesamesjump; fluxoModo = 'dia'; render(); });
   });
   document.querySelectorAll('#fluxoViewToggle button').forEach(b=>{
     b.addEventListener('click', ()=>{ fluxoView = b.dataset.view; render(); });
@@ -5291,6 +5952,7 @@ function wireFluxo(){
     btn.addEventListener('click', ()=> openDrillDownDia(btn.dataset.drillDia));
   });
 }
+
 // Grade de calendário do mês (domingo a sábado) com receitas/despesas por dia de vencimento —
 // reaproveita os mesmos dados diários (rows) já calculados por computeDailyCashflow().
 function calendarioFluxo(rows, month){
@@ -5344,16 +6006,21 @@ function saldoLineChart(rows, minV, maxV){
 // ===================== Faturas por cartão =====================
 function viewFaturas(){
   return `
-    <div class="topbar">
-      <div><h1>Faturas por cartão</h1><div class="sub">Histórico de faturas identificadas nos arquivos enviados</div></div>
-      <select data-card-select id="selCard">${state.cards.map(c=>`<option value="${c.id}">${c.name}</option>`).join('')}</select>
-    </div>
+    <div class="topbar"><div class="sub">Faturas, vencimentos e limites — escolha um cartão pra ver o histórico e os itens de cada fatura</div></div>
+    <select data-card-select id="selCard" class="hidden">${state.cards.map(c=>`<option value="${c.id}">${c.name}</option>`).join('')}</select>
+    <div class="lgrid" style="margin-bottom:18px;">${state.cards.map(c=>{
+      const mes = todayInfo().month;
+      const fat = state.lancamentos.filter(l=>l.origemTipo==='cartao' && l.origemId===c.id && l.fatura===mes).reduce((t,l)=>t-l.valor,0);
+      return `<button type="button" class="lcard" data-card-pick="${c.id}"><span class="bar" style="background:${c.cor||'var(--s1)'}"></span><span class="lmain"><span class="ltitle" style="display:block">${c.name}</span><span class="lsub" style="display:block">${c.diaVencimento?`Vence dia ${c.diaVencimento}`:'Vencimento não cadastrado'}${c.limite?` · limite ${fmt(c.limite)}`:''}<br>Fatura de ${monthLabel(mes)}: <b>${fmt(Math.round(fat*100)/100)}</b></span></span><span class="lbtn">Ver faturas</span></button>`; }).join('')}</div>
     <div id="faturaBody"></div>
   `;
 }
 function render_faturaFor(cardId){
   const el = document.getElementById('faturaBody');
-  el.innerHTML = faturaBodyHTML(cardId || state.cards[0].id);
+  cardId = cardId || state.cards[0].id;
+  const selC = document.getElementById('selCard'); if(selC) selC.value = cardId;
+  document.querySelectorAll('[data-card-pick]').forEach(b=>{ b.classList.toggle('sel', b.dataset.cardPick===cardId); b.onclick = ()=> render_faturaFor(b.dataset.cardPick); });
+  el.innerHTML = faturaBodyHTML(cardId);
   const btnGoto = el.querySelector('[data-goto-cadastro]');
   if(btnGoto) btnGoto.addEventListener('click', ()=>{ currentTab='cadastro'; document.querySelectorAll('.navbtn').forEach(b=>b.classList.toggle('active', b.dataset.tab==='cadastro')); render(); });
   wireLinhasLancamento(el);
@@ -5439,12 +6106,11 @@ function faturaBodyHTML(cardId){
 // ===================== Extratos por conta =====================
 function viewExtratos(){
   return `
-    <div class="topbar">
-      <div><h1>Extratos por conta</h1><div class="sub">Lançamentos das contas correntes, com saldo estimado ao longo do período</div></div>
-      <select data-account-select id="selAccount">${state.accounts.map(a=>`<option value="${a.id}">${a.name}</option>`).join('')}</select>
-    </div>
-    <div class="card">
-      <div class="filterrow">
+    <div class="topbar"><div class="sub">Suas contas e o extrato de cada uma, com saldo ao longo do período — escolha uma conta</div></div>
+    <select data-account-select id="selAccount" class="hidden">${state.accounts.map(a=>`<option value="${a.id}">${a.name}</option>`).join('')}</select>
+    <div class="lgrid" style="margin-bottom:18px;">${state.accounts.map(a=>`<button type="button" class="lcard" data-acc-pick="${a.id}"><span class="bar" style="background:${a.cor||'var(--s1)'}"></span><span class="lmain"><span class="ltitle" style="display:block">${a.name}</span><span class="lsub" style="display:block">${a.banco||''} · extrato até ${a.dataExtrato?fmtDate(a.dataExtrato):'—'}<br>Saldo: <b>${fmt(a.saldoAtual)}</b></span></span><span class="lbtn">Ver extrato</span></button>`).join('')}</div>
+    <div class="filtergrid">
+      <div class="filterrow" style="display:contents">
         <div><label>De</label><input type="date" id="extDe"></div>
         <div><label>Até</label><input type="date" id="extAte"></div>
         <div><label>Tipo</label>
@@ -5454,7 +6120,7 @@ function viewExtratos(){
             <option value="saida">Só saídas</option>
           </select>
         </div>
-        <div><button class="btn secondary" type="button" id="btnLimparFiltroExt">Limpar filtro</button></div>
+        <div style="display:flex; align-items:flex-end;"><button class="btn secondary" type="button" id="btnLimparFiltroExt">Limpar filtro</button></div>
       </div>
     </div>
     <div id="extratoBody"></div>
@@ -5480,7 +6146,10 @@ function wireExtratoFiltros(){
 }
 function render_extratoFor(accId){
   const el = document.getElementById('extratoBody');
-  el.innerHTML = extratoBodyHTML(accId || state.accounts[0].id, getExtratoFiltros());
+  accId = accId || state.accounts[0].id;
+  const selA = document.getElementById('selAccount'); if(selA) selA.value = accId;
+  document.querySelectorAll('[data-acc-pick]').forEach(b=>{ b.classList.toggle('sel', b.dataset.accPick===accId); b.onclick = ()=> render_extratoFor(b.dataset.accPick); });
+  el.innerHTML = extratoBodyHTML(accId, getExtratoFiltros());
   wireLinhasLancamento(el);
 }
 function extratoBodyHTML(accId, filtros){
@@ -5526,11 +6195,11 @@ function extratoBodyHTML(accId, filtros){
 
   return `
     <div class="tiles">
-      <div class="tile"><div class="label">Saldo no início do período</div><div class="value" ${saldoInicioIndisponivel?'style="font-size:14px;"':''}>${saldoInicioIndisponivel ? 'Indisponível <span style="font-weight:400;font-size:11px;display:block;color:var(--text-muted);">sem lançamentos registrados antes desta data</span>' : fmt(saldoInicioPeriodo)}</div></div>
-      <div class="tile"><div class="label">Entradas no período</div><div class="value pos">${fmt(entradasPeriodo)}</div></div>
-      <div class="tile"><div class="label">Saídas no período</div><div class="value neg">${fmt(-saidasPeriodo)}</div></div>
-      <div class="tile"><div class="label">Saldo no final do período (${fmtDate(dataFinalPeriodo)})</div><div class="value">${fmt(saldoFinalPeriodo)}</div></div>
-      <div class="tile"><div class="label">Movimentação líquida no período</div><div class="value ${netPeriodo>=0?'pos':'neg'}">${fmt(netPeriodo)}</div></div>
+      <div class="tile has-chip"><span class="chip purple">${icon('wallet',24)}</span><div class="label">Saldo no início do período</div><div class="value" ${saldoInicioIndisponivel?'style="font-size:14px;"':''}>${saldoInicioIndisponivel ? 'Indisponível <span style="font-weight:400;font-size:11px;display:block;color:var(--text-muted);">sem lançamentos registrados antes desta data</span>' : fmt(saldoInicioPeriodo)}</div></div>
+      <div class="tile has-chip"><span class="chip green">${icon('up',24)}</span><div class="label">Entradas no período</div><div class="value pos">${fmt(entradasPeriodo)}</div></div>
+      <div class="tile has-chip"><span class="chip orange">${icon('down',24)}</span><div class="label">Saídas no período</div><div class="value neg">${fmt(-saidasPeriodo)}</div></div>
+      <div class="tile has-chip"><span class="chip blue">${icon('landmark',24)}</span><div class="label">Saldo no final do período (${fmtDate(dataFinalPeriodo)})</div><div class="value">${fmt(saldoFinalPeriodo)}</div></div>
+      <div class="tile has-chip"><span class="chip purple">${icon('target',24)}</span><div class="label">Movimentação líquida no período</div><div class="value ${netPeriodo>=0?'pos':'neg'}">${fmt(netPeriodo)}</div></div>
     </div>
     <div class="card">
       <h2>Extrato <small>${acc.name} · ${acc.banco}</small></h2>
