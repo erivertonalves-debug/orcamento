@@ -4910,8 +4910,9 @@ function viewCadastro(){
     const mesesFechadosOrdenados = [...state.mesesFechados].sort().reverse();
   return `
     <div class="topbar">
-      <div><h1>Cadastro</h1><div class="sub">Configurações do app: vencimento dos cartões, categorias e fechamento de mês</div></div>
+      <div><h1>Cadastro</h1><div class="sub">Contas, cartões e fechamento de mês</div></div>
     </div>
+    ${(()=>{ const m = flashMsg; flashMsg = null; return m ? `<div class="flashmsg">${m}</div>` : ''; })()}
     <div class="card">
       <h2>🔒 Fechar/reabrir mês</h2>
       <div class="sub" style="margin:-4px 0 12px;">Um mês fechado não deixa mais lançar, editar categoria/competência/rateio nem excluir lançamentos datados (conta) ou faturados (cartão) naquele mês — em nenhuma tela. Pra reabrir, digite o mês exatamente como aparece no rótulo (ex: "${monthLabel(todayInfo().month)}").</div>
@@ -4930,14 +4931,46 @@ function viewCadastro(){
       </tbody></table></div>` : `<div class="sub" style="margin-top:10px;">Nenhum mês fechado ainda.</div>`}
     </div>
     <div class="card">
-      <h2>💳 Vencimento dos cartões</h2>
-      <div class="sub" style="margin:-4px 0 12px;">Usado pra projetar a fatura no Fluxo de Caixa e sinalizar o vencimento em Em Aberto.</div>
-      <div class="tblwrap"><table><thead><tr><th>Cartão</th><th>Dia de vencimento (1-31)</th></tr></thead><tbody>
-        ${state.cards.map(c=>`<tr>
-          <td>${c.name}</td>
-          <td><input type="number" min="1" max="31" step="1" style="max-width:100px" data-venc-dia="${c.id}" value="${c.diaVencimento||''}" placeholder="ex: 10"></td>
-        </tr>`).join('')}
+      <h2>🏦 Contas</h2>
+      <div class="cardsub">Renomeie, troque o banco ou a cor direto na linha (salva ao sair do campo). O saldo é calculado pelos lançamentos — por isso não é editável aqui.</div>
+      <div class="tblwrap"><table><thead><tr><th>Cor</th><th>Nome</th><th>Banco / tipo</th><th style="text-align:right">Saldo atual</th><th>Lançamentos</th><th></th></tr></thead><tbody>
+        ${state.accounts.map(a=>{ const n = usosOrigem('conta', a.id); return `<tr>
+          <td><input type="color" data-acc-cor="${a.id}" value="${a.cor||'#6046c6'}" style="width:42px; height:34px; padding:2px;"></td>
+          <td><input type="text" data-acc-nome="${a.id}" value="${escAttr(a.name)}" style="min-width:150px"></td>
+          <td><input type="text" data-acc-banco="${a.id}" value="${escAttr(a.banco||'')}" style="min-width:150px"></td>
+          <td style="text-align:right">${fmt(a.saldoAtual)}</td>
+          <td>${n}</td>
+          <td><button class="iconmini del" type="button" data-acc-del="${a.id}" title="${n?'Só dá pra excluir conta sem lançamentos':'Excluir conta'}"${n?' disabled':''}>${icon('trash',16)}</button></td>
+        </tr>`; }).join('')}
       </tbody></table></div>
+      <form id="formNovaConta" class="filtergrid" style="margin:16px 0 0;">
+        <div><label>Nova conta — nome</label><input type="text" name="nome" required placeholder="Ex: Nubank Conta"></div>
+        <div><label>Banco / tipo</label><input type="text" name="banco" placeholder="Ex: Nubank"></div>
+        <div><label>Saldo inicial (R$)</label><input type="number" step="0.01" name="saldo" value="0"></div>
+        <div><label>Cor</label><input type="color" name="cor" value="#6046c6" style="width:60px; height:40px; padding:2px;"></div>
+        <div style="display:flex; align-items:flex-end;"><button class="btn" type="submit">+ Adicionar conta</button></div>
+      </form>
+    </div>
+    <div class="card">
+      <h2>💳 Cartões</h2>
+      <div class="cardsub">O vencimento é usado pra projetar a fatura no Fluxo de caixa e sinalizar o vencimento em Em aberto.</div>
+      <div class="tblwrap"><table><thead><tr><th>Cor</th><th>Nome</th><th>Vencimento (dia 1-31)</th><th>Limite (R$)</th><th>Lançamentos</th><th></th></tr></thead><tbody>
+        ${state.cards.map(c=>{ const n = usosOrigem('cartao', c.id); return `<tr>
+          <td><input type="color" data-card-cor="${c.id}" value="${c.cor||'#6046c6'}" style="width:42px; height:34px; padding:2px;"></td>
+          <td><input type="text" data-card-nome="${c.id}" value="${escAttr(c.name)}" style="min-width:150px"></td>
+          <td><input type="number" min="1" max="31" step="1" style="max-width:100px" data-venc-dia="${c.id}" value="${c.diaVencimento||''}" placeholder="ex: 10"></td>
+          <td><input type="number" min="0" step="0.01" style="max-width:130px" data-card-limite="${c.id}" value="${c.limite||''}" placeholder="opcional"></td>
+          <td>${n}</td>
+          <td><button class="iconmini del" type="button" data-card-del="${c.id}" title="${n?'Só dá pra excluir cartão sem lançamentos':'Excluir cartão'}"${n?' disabled':''}>${icon('trash',16)}</button></td>
+        </tr>`; }).join('')}
+      </tbody></table></div>
+      <form id="formNovoCartao" class="filtergrid" style="margin:16px 0 0;">
+        <div><label>Novo cartão — nome</label><input type="text" name="nome" required placeholder="Ex: C6 Carbon"></div>
+        <div><label>Vencimento (dia)</label><input type="number" min="1" max="31" step="1" name="venc" placeholder="ex: 10"></div>
+        <div><label>Limite (R$)</label><input type="number" min="0" step="0.01" name="limite" placeholder="opcional"></div>
+        <div><label>Cor</label><input type="color" name="cor" value="#6046c6" style="width:60px; height:40px; padding:2px;"></div>
+        <div style="display:flex; align-items:flex-end;"><button class="btn" type="submit">+ Adicionar cartão</button></div>
+      </form>
     </div>
     <div class="card">
       <h2>🏷️ Categorias</h2>
@@ -4945,7 +4978,81 @@ function viewCadastro(){
     </div>
   `;
 }
+
+const escAttr = (v) => String(v==null?'':v).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+function usosOrigem(tipo, id){
+  let n = state.lancamentos.filter(l=>l.origemTipo===tipo && l.origemId===id).length;
+  if(tipo==='cartao') n += state.lancamentos.filter(l=>l.pagaFaturaCardId===id).length;
+  return n;
+}
+function novoIdUnico(nome, lista){
+  const base = planoSlug(nome) || 'item';
+  let id = base, i = 2;
+  while(lista.some(x=>x.id===id)) id = base + '_' + (i++);
+  return id;
+}
+function nomeDisponivel(nome, lista, ignorarId){
+  const n = nome.trim().toLowerCase();
+  return !lista.some(x=>x.id!==ignorarId && x.name.trim().toLowerCase()===n);
+}
 function wireCadastro(){
+  const renomear = (sel, attr, lista, rotulo)=>{
+    document.querySelectorAll(sel).forEach(inp=>{
+      inp.addEventListener('change', ()=>{
+        const item = lista().find(x=>x.id===inp.dataset[attr]);
+        if(!item) return;
+        const novo = inp.value.trim();
+        if(!novo){ alert('O nome não pode ficar vazio.'); inp.value = item.name; return; }
+        if(!nomeDisponivel(novo, lista(), item.id)){ alert(`Já existe ${rotulo} chamado "${novo}".`); inp.value = item.name; return; }
+        item.name = novo; render();
+      });
+    });
+  };
+  renomear('[data-acc-nome]', 'accNome', ()=>state.accounts, 'uma conta');
+  renomear('[data-card-nome]', 'cardNome', ()=>state.cards, 'um cartão');
+  document.querySelectorAll('[data-acc-banco]').forEach(inp=>inp.addEventListener('change', ()=>{ const a = accById(inp.dataset.accBanco); if(a){ a.banco = inp.value.trim(); render(); } }));
+  document.querySelectorAll('[data-acc-cor]').forEach(inp=>inp.addEventListener('change', ()=>{ const a = accById(inp.dataset.accCor); if(a){ a.cor = inp.value; render(); } }));
+  document.querySelectorAll('[data-card-cor]').forEach(inp=>inp.addEventListener('change', ()=>{ const c = cardById(inp.dataset.cardCor); if(c){ c.cor = inp.value; render(); } }));
+  document.querySelectorAll('[data-card-limite]').forEach(inp=>inp.addEventListener('change', ()=>{ const c = cardById(inp.dataset.cardLimite); if(c){ const v = parseFloat(inp.value); c.limite = v>0 ? v : null; render(); } }));
+  document.querySelectorAll('[data-acc-del]').forEach(btn=>btn.addEventListener('click', ()=>{
+    const a = accById(btn.dataset.accDel); if(!a || usosOrigem('conta', a.id)) return;
+    if(state.accounts.length<=1){ alert('O app precisa ter pelo menos uma conta.'); return; }
+    if(!confirm(`Excluir a conta "${a.name}"? Ela não tem lançamentos.`)) return;
+    state.accounts = state.accounts.filter(x=>x.id!==a.id);
+    if(fluxoConta===a.id) fluxoConta = null;
+    if(mvF.origem==='conta:'+a.id) mvF.origem = '';
+    render();
+  }));
+  document.querySelectorAll('[data-card-del]').forEach(btn=>btn.addEventListener('click', ()=>{
+    const c = cardById(btn.dataset.cardDel); if(!c || usosOrigem('cartao', c.id)) return;
+    if(state.cards.length<=1){ alert('O app precisa ter pelo menos um cartão.'); return; }
+    if(!confirm(`Excluir o cartão "${c.name}"? Ele não tem lançamentos.`)) return;
+    state.cards = state.cards.filter(x=>x.id!==c.id);
+    if(mvF.origem==='cartao:'+c.id) mvF.origem = '';
+    render();
+  }));
+  document.getElementById('formNovaConta').addEventListener('submit', (e)=>{
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const nome = (fd.get('nome')||'').trim();
+    if(!nome){ alert('Informe o nome da conta.'); return; }
+    if(!nomeDisponivel(nome, state.accounts)){ alert(`Já existe uma conta chamada "${nome}".`); return; }
+    const saldo = Math.round((parseFloat(fd.get('saldo'))||0)*100)/100;
+    state.accounts.push({ id: novoIdUnico(nome, state.accounts), name: nome, banco: (fd.get('banco')||'').trim() || nome, saldoAtual: saldo, dataExtrato: dataBase(), cor: fd.get('cor') });
+    flashMsg = `✅ Conta "${nome}" criada com saldo inicial de ${fmt(saldo)}.`;
+    render();
+  });
+  document.getElementById('formNovoCartao').addEventListener('submit', (e)=>{
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const nome = (fd.get('nome')||'').trim();
+    if(!nome){ alert('Informe o nome do cartão.'); return; }
+    if(!nomeDisponivel(nome, state.cards)){ alert(`Já existe um cartão chamado "${nome}".`); return; }
+    const venc = parseInt(fd.get('venc')); const lim = parseFloat(fd.get('limite'));
+    state.cards.push({ id: novoIdUnico(nome, state.cards), name: nome, limite: lim>0 ? lim : null, diaVencimento: (venc>=1 && venc<=31) ? venc : null, cor: fd.get('cor') });
+    flashMsg = `✅ Cartão "${nome}" criado.`;
+    render();
+  });
   document.getElementById('btnFecharMes').addEventListener('click', ()=>{
     const m = document.getElementById('inpFecharMes').value;
     if(!m){ alert('Escolha um mês.'); return; }
