@@ -3556,6 +3556,7 @@ function ensureDefaults(){
   if(!Array.isArray(state.mesesFechados)) state.mesesFechados = [];
   if(!Array.isArray(state.planoGrupos)) state.planoGrupos = [];
   (state.cards||[]).forEach(c=>{ if(c.diaVencimento===undefined) c.diaVencimento = null; });
+  impSeedMap();
   migrarPlanoDeContas(state);
 }
 
@@ -4000,6 +4001,7 @@ const ICONS = {
   chev:'<path d="m9 18 6-6-6-6"/>',
   pencil:'<path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/>',
   trash:'<path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/>',
+  upload:'<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/>',
   transfer:'<path d="m16 3 4 4-4 4"/><path d="M20 7H4"/><path d="m8 21-4-4 4-4"/><path d="M4 17h16"/>',
 };
 function icon(name, size){
@@ -4010,6 +4012,7 @@ function icon(name, size){
 const TABS = [
   {id:'dashboard',   label:'Visão geral',     icon:'home'},
   {id:'lancamentos', label:'Movimentações',   icon:'receipt'},
+  {id:'importar',    label:'Importar extrato',  icon:'upload'},
   {id:'fluxo',       label:'Fluxo de caixa',  icon:'calendar'},
   {id:'extratos',    label:'Contas',          icon:'banknote'},
   {id:'faturas',     label:'Cartões',         icon:'card'},
@@ -4147,6 +4150,7 @@ function render(){
   else if(currentTab==='emprestimos'){ main.innerHTML = viewEmprestimos(); wireEmprestimos(); }
   else if(currentTab==='cadastro'){ main.innerHTML = viewCadastro(); wireCadastro(); }
   else if(currentTab==='plano'){ main.innerHTML = viewPlano(); wirePlano(); }
+  else if(currentTab==='importar'){ main.innerHTML = viewImportar(); wireImportar(); }
   wireCommon();
 }
 
@@ -4906,6 +4910,573 @@ function wirePlano(){
 }
 
 // ===================== Cadastro (vencimento de cartões, categorias, fechamento de mês) =====================
+// ===================== Importar extrato / fatura (OFX e PDF) =====================
+// Lê arquivos do banco (OFX = confiável; PDF = leitura por texto, beta), mostra uma tela de
+// revisão (novo / duplicado / sem categoria) e só lança o que o usuário confirmar.
+// Tudo roda no navegador — nenhum arquivo sai do aparelho (o pdf.js vem da CDN, só ele).
+const IMP_PDFJS = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+const IMP_PDFJS_WORKER = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+const IMP_MEUS_NOMES = ['ERIVERTON DE SOUZA ALVES'];   // PIX para/de você mesmo = transferência entre contas
+let impArquivos = [];     // arquivos lidos, aguardando revisão (só em memória)
+let impBusy = '';         // texto de "lendo arquivo..."
+let impErros = [];        // erros de leitura da última seleção
+
+const impSemAcento = s => String(s==null?'':s).normalize('NFD').replace(/[̀-ͯ]/g,'');
+const impNorm = s => impSemAcento(s).toLowerCase();
+const impCents = v => Math.round(Math.abs(v)*100);
+const impR2 = v => Math.round(v*100)/100;
+function impKeyAcct(raw){
+  const s = String(raw||'').trim().toLowerCase();
+  if(!s) return '';
+  return /[a-z]/.test(s) ? s : s.replace(/\D/g,'');
+}
+function impDias(a, b){ return Math.round((new Date(a+'T12:00:00') - new Date(b+'T12:00:00'))/86400000); }
+const impTitulo = s => String(s).toLowerCase().replace(/(^|\s|[-'])([a-zà-ú])/g, (m,p,c)=>p+c.toUpperCase());
+
+// Contas/cartões já conhecidos (ACCTID -> conta ou cartão do app). O resto o usuário escolhe uma vez e o app lembra.
+function impSeedMap(){
+  if(!state.importMap || typeof state.importMap!=='object') state.importMap = {};
+  if(!Array.isArray(state.importLotes)) state.importLotes = [];
+  const seed = {
+    '47728574': ['conta','inter_pf'],
+    '164963089': ['conta','nuconta'],
+    '339132981': ['conta','esa_pj'],
+    '5f499550-f136-4109-88dc-3862807db272': ['cartao','nubank_2'],
+  };
+  Object.keys(seed).forEach(k=>{
+    const [tipo,id] = seed[k];
+    const existe = tipo==='conta' ? (state.accounts||[]).some(a=>a.id===id) : (state.cards||[]).some(c=>c.id===id);
+    if(!state.importMap[k] && existe) state.importMap[k] = {tipo, id};
+  });
+}
+
+// ---------- Leitura de arquivos ----------
+async function impLerTexto(file){
+  const buf = await file.arrayBuffer();
+  const head = new TextDecoder('latin1').decode(buf.slice(0,600));
+  let txt;
+  if(/CHARSET:\s*1252|ENCODING:\s*USASCII/i.test(head)) txt = new TextDecoder('windows-1252').decode(buf);
+  else {
+    txt = new TextDecoder('utf-8').decode(buf);
+    if(txt.includes('�')) txt = new TextDecoder('windows-1252').decode(buf);
+  }
+  return txt;
+}
+const impEnt = s => String(s||'').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#39;/g,"'");
+function impParseOFX(text, nomeArq){
+  const tag = (s,t)=>{ const m = s.match(new RegExp('<'+t+'>\\s*([^<\\r\\n]*)','i')); return m ? m[1].trim() : ''; };
+  const dt = s => { const m = String(s).match(/(\d{4})(\d{2})(\d{2})/); return m ? `${m[1]}-${m[2]}-${m[3]}` : ''; };
+  const num = s => { s = String(s).trim(); if(s.includes(',') && !s.includes('.')) s = s.replace(',','.'); return parseFloat(s); };
+  if(!/<OFX>/i.test(text)) throw new Error('não parece um arquivo OFX');
+  const isCard = /<CCSTMTRS>|<CREDITCARDMSGSRSV1>/i.test(text);
+  const head = text.split(/<BANKTRANLIST>/i)[0];
+  const acct = impKeyAcct(tag(head,'ACCTID'));
+  const lb = text.match(/<LEDGERBAL>([\s\S]*?)(?:<\/LEDGERBAL>|<AVAILBAL>|<BALLIST>|<\/STMTRS>|<\/CCSTMTRS>|$)/i);
+  const saldo = lb ? num(tag(lb[1],'BALAMT')) : NaN;
+  const saldoData = lb ? dt(tag(lb[1],'DTASOF')) : '';
+  const blocks = text.split(/<STMTTRN>/i).slice(1);
+  const txs = blocks.map(b=>{
+    b = b.split(/<\/STMTTRN>|<\/BANKTRANLIST>/i)[0];
+    const memo = impEnt(tag(b,'MEMO')), name = impEnt(tag(b,'NAME'));
+    let m = memo || name;
+    if(memo && name && !memo.toLowerCase().includes(name.toLowerCase())) m = name + ' - ' + memo;
+    return { data: dt(tag(b,'DTPOSTED')), valor: num(tag(b,'TRNAMT')), fitid: tag(b,'FITID'), memo: m.replace(/\s+/g,' ').trim() };
+  }).filter(t=>t.data && isFinite(t.valor));
+  let inverter = false;
+  if(isCard){
+    const soma = txs.reduce((s,t)=>s+t.valor,0);
+    if(soma > 0.004) inverter = true;   // fatura: compras precisam ficar negativas
+  }
+  let venc = '';
+  const mNome = String(nomeArq||'').match(/(\d{4})-(\d{2})-(\d{2})/);
+  if(isCard && mNome) venc = mNome[0];
+  return { formato:'OFX', tipo: isCard?'cartao':'conta', acctKey: acct, periodo:{de:dt(tag(text,'DTSTART')), ate:dt(tag(text,'DTEND'))},
+           saldoBanco: isFinite(saldo)?saldo:null, saldoData, venc, totalFatura:null, inverter, txs };
+}
+
+// ---------- PDF (pdf.js lê o texto; os parsers trabalham sobre as linhas) ----------
+async function impLoadPdfJs(){
+  if(window.pdfjsLib && window.pdfjsLib.GlobalWorkerOptions.workerSrc) return window.pdfjsLib;
+  await loadScriptOnce(IMP_PDFJS);
+  const lib = window.pdfjsLib;
+  try{
+    const r = await fetch(IMP_PDFJS_WORKER);
+    const blob = new Blob([await r.text()], {type:'text/javascript'});
+    lib.GlobalWorkerOptions.workerSrc = URL.createObjectURL(blob);
+  }catch(e){ lib.GlobalWorkerOptions.workerSrc = IMP_PDFJS_WORKER; }
+  return lib;
+}
+async function impPdfLinhas(file){
+  const lib = await impLoadPdfJs();
+  const data = new Uint8Array(await file.arrayBuffer());
+  const task = lib.getDocument({data, onPassword:(cb,reason)=>{
+    const p = window.prompt(reason===2 ? 'Senha incorreta. Digite a senha do PDF:' : 'Este PDF tem senha. Digite a senha do PDF:');
+    if(p) cb(p); else cb('');
+  }});
+  const pdf = await task.promise;
+  const linhas = [];
+  for(let p=1; p<=pdf.numPages; p++){
+    const page = await pdf.getPage(p);
+    const tc = await page.getTextContent();
+    const itens = tc.items.filter(i=>i.str && i.str.trim()).map(i=>({s:i.str, x:i.transform[4], y:i.transform[5], w:i.width||0}));
+    itens.sort((a,b)=> (b.y - a.y) || (a.x - b.x));
+    const grupos = [];
+    itens.forEach(it=>{
+      const g = grupos.find(g=>Math.abs(g.y - it.y) <= 3);
+      if(g) g.it.push(it); else grupos.push({y:it.y, it:[it]});
+    });
+    grupos.sort((a,b)=>b.y-a.y).forEach(g=>{
+      g.it.sort((a,b)=>a.x-b.x);
+      let t = '', fim = null;
+      g.it.forEach(i=>{ t += (fim!==null && i.x - fim > 1.5 ? '  ' : (fim!==null ? ' ' : '')) + i.s.trim(); fim = i.x + i.w; });
+      linhas.push(t.replace(/[ \t]+$/,''));
+    });
+  }
+  return linhas;
+}
+const IMP_MESES = {jan:1,fev:2,mar:3,abr:4,mai:5,jun:6,jul:7,ago:8,set:9,out:10,nov:11,dez:12};
+const IMP_VALOR_RE = /(-)?\s*(?:R\$)?\s*(-)?\s*(\d{1,3}(?:\.\d{3})+|\d+),(\d{2})(-)?(?![\d%])/g;
+function impValores(linha){
+  const out = []; IMP_VALOR_RE.lastIndex = 0; let m;
+  while((m = IMP_VALOR_RE.exec(linha))){
+    const v = parseFloat(m[3].replace(/\./g,'') + '.' + m[4]);
+    out.push({ valor: (m[1]||m[2]||m[5]) ? -v : v, ini: m.index, fim: m.index + m[0].length });
+  }
+  return out;
+}
+function impParsePDFLinhas(linhas, nomeArq){
+  const txt = linhas.join('\n'), flat = impNorm(txt);
+  let tipo = 'conta';
+  if(/total (desta |da )?fatura|pagamento minimo|fechamento da fatura|resumo da fatura/.test(flat) && !/saldo do dia|saldo anterior/.test(flat)) tipo = 'cartao';
+  const mConta = txt.match(/Conta:?\s*(?:\d{3,4}\s*\/\s*)?(\d[\d.\-]{4,})/i);
+  const mPer = txt.match(/Per[ií]odo:?\s*(\d{2})\/(\d{2})\/(\d{4})\s*(?:a|at[eé]|-)\s*(\d{2})\/(\d{2})\/(\d{4})/i);
+  const periodo = mPer ? {de:`${mPer[3]}-${mPer[2]}-${mPer[1]}`, ate:`${mPer[6]}-${mPer[5]}-${mPer[4]}`} : {de:'',ate:''};
+  const mSaldo = txt.match(/Saldo total[\s\S]{0,120}?R\$\s*(-?[\d.]+,\d{2})/i);
+  const saldoBanco = mSaldo ? parseFloat(mSaldo[1].replace(/\./g,'').replace(',','.')) : null;
+  const mVenc = txt.match(/vencimento[^\d]{0,25}(\d{2})\/(\d{2})\/(\d{4})/i);
+  let venc = mVenc ? `${mVenc[3]}-${mVenc[2]}-${mVenc[1]}` : '';
+  const mNome = String(nomeArq||'').match(/(\d{4})-(\d{2})-(\d{2})/);
+  if(!venc && tipo==='cartao' && mNome) venc = mNome[0];
+  const mTot = txt.match(/total (?:desta |da )?fatura[^\d\-]{0,40}(?:R\$)?\s*(-?[\d.]+,\d{2})/i);
+  const totalFatura = mTot ? parseFloat(mTot[1].replace(/\./g,'').replace(',','.')) : null;
+  const ref = venc || periodo.ate || (typeof dataBase==='function' ? dataBase() : '');
+  const refY = ref ? +ref.slice(0,4) : new Date().getFullYear(), refM = ref ? +ref.slice(5,7) : 12;
+  const anoPara = (m, y)=>{ if(y){ y = +y; return y<100 ? 2000+y : y; } return m > refM ? refY-1 : refY; };
+  const iso = (y,m,d)=>`${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+  const txs = [];
+  let dataAtual = '';
+  linhas.forEach(raw=>{
+    const linha = raw.replace(/\s+/g,' ').trim();
+    if(!linha) return;
+    const n = impNorm(linha);
+    // Cabeçalho de dia (Inter): "2 de Outubro de 2026 Saldo do dia: R$ ..."
+    let m = linha.match(/^(\d{1,2}) de ([A-Za-zÀ-ú]+) de (\d{4})/);
+    if(m && /saldo do dia/.test(n)){
+      const mes = IMP_MESES[impNorm(m[2]).slice(0,3)];
+      if(mes) dataAtual = iso(m[3], mes, +m[1]);
+      return;
+    }
+    let data = '', resto = linha;
+    const d1 = linha.match(/^(\d{2})\/(\d{2})(?:\/(\d{2,4}))?\s+(.+)$/);
+    const d2 = linha.match(/^(\d{1,2}) (?:de )?(jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)[a-z]*\.?(?: (?:de )?(\d{4}))?\s+(.+)$/i);
+    if(d1){ const mes=+d1[2]; if(mes<1||mes>12) return; data = iso(anoPara(mes,d1[3]), mes, +d1[1]); resto = d1[4]; }
+    else if(d2){ const mes=IMP_MESES[d2[2].toLowerCase()]; data = iso(anoPara(mes,d2[3]), mes, +d2[1]); resto = d2[4]; }
+    else if(dataAtual){ data = dataAtual; }     // linhas sob um cabeçalho de dia
+    else return;
+    if(/saldo|total|subtotal|solicitado|limite/.test(impNorm(resto))) return;
+    const vals = impValores(resto);
+    if(!vals.length) return;
+    const v = tipo==='cartao' ? vals[vals.length-1] : vals[0];
+    const desc = resto.slice(0, vals[0].ini).replace(/[\s\-–:]+$/,'').trim() || resto.replace(IMP_VALOR_RE,'').trim();
+    if(!desc) return;
+    txs.push({ data, valor: tipo==='cartao' ? -v.valor : v.valor, fitid:'', memo: desc });
+  });
+  return { formato:'PDF', tipo, acctKey: mConta ? impKeyAcct(mConta[1]) : '', periodo, saldoBanco, saldoData: periodo.ate, venc, totalFatura, inverter:false, txs };
+}
+
+// ---------- Descrição e categoria sugeridas ----------
+function impLimparMemo(memo){
+  let s = String(memo||'').trim();
+  let m = s.match(/^Transfer[êe]ncia (?:recebida|enviada)(?: pelo Pix)? - (.+?) - [•*\d.\-]+ - /i)
+       || s.match(/^Pix (?:recebido|enviado):?\s*"?(?:Cp\s*:)?\s*\d*-?(.+?)"?$/i)
+       || s.match(/^Pix (?:recebido|enviado) (?:de|para)\s+(.+)$/i);
+  if(m){
+    let palavras = m[1].replace(/\s+/g,' ').trim().split(' ').filter(w=>!/^(ltda|me|epp|eireli|s\/a|sa)$/i.test(w));
+    if(palavras.length>2) palavras = palavras.slice(0,2);
+    const curto = palavras.join(' ') || m[1];
+    return 'PIX ' + impTitulo(curto);
+  }
+  return s.length>80 ? s.slice(0,80) : s;
+}
+function impEhMeu(memo){
+  const n = impSemAcento(memo).toUpperCase();
+  const nomes = IMP_MEUS_NOMES.concat((state.importCfg && state.importCfg.meusNomes) || []);
+  return nomes.some(x=>n.includes(impSemAcento(x).toUpperCase()));
+}
+const IMP_STOP = new Set(['pix','transf','transferencia','recebida','recebido','enviada','enviado','pelo','pagamento','compra','cartao','debito','credito','parcela','de','da','do','em','para','via','cp','ltda','sa','me']);
+function impTokens(desc){
+  return new Set(impNorm(desc).replace(/\(parcela[^)]*\)/g,' ').replace(/\d+\/\d+/g,' ').replace(/[^a-z\s]/g,' ').split(/\s+/).filter(t=>t.length>1 && !IMP_STOP.has(t)));
+}
+function impIndiceCategorias(){
+  const idx = new Map();   // chave -> {cats:{id:n}, tokens:Set}
+  state.lancamentos.forEach(l=>{
+    if(!l.categoriaId || l.categoriaId==='sys_transferencia' || l.categoriaId===CAT_PAGAMENTO_FATURA) return;
+    const tk = impTokens(l.descricao); if(!tk.size) return;
+    const chave = [...tk].sort().join(' ');
+    let e = idx.get(chave); if(!e){ e = {cats:{}, tokens:tk}; idx.set(chave,e); }
+    e.cats[l.categoriaId] = (e.cats[l.categoriaId]||0)+1;
+  });
+  return idx;
+}
+function impCategoriaPorHistorico(desc, idx){
+  const tk = impTokens(desc); if(!tk.size) return '';
+  const chave = [...tk].sort().join(' ');
+  const pick = e => Object.entries(e.cats).sort((a,b)=>b[1]-a[1])[0][0];
+  if(idx.has(chave)) return pick(idx.get(chave));
+  let melhor = null, ms = 0;
+  idx.forEach(e=>{
+    let inter = 0; tk.forEach(t=>{ if(e.tokens.has(t)) inter++; });
+    const sc = inter / (tk.size + e.tokens.size - inter);
+    if(sc > ms){ ms = sc; melhor = e; }
+  });
+  return melhor && ms >= 0.5 ? pick(melhor) : '';
+}
+const IMP_CARTAO_HINTS = [
+  [/digio/, c=>/digio/.test(impNorm(c.name+c.id))],
+  [/nu pagamentos|nubank/, c=>/nubank/.test(impNorm(c.name+c.id))],
+  [/\binter\b/, c=>/inter/.test(impNorm(c.name+c.id))],
+  [/ita[uú]/, c=>/itau/.test(impNorm(c.name+c.id))],
+];
+function impCartoesHint(memo){
+  const n = impNorm(memo);
+  const out = [];
+  IMP_CARTAO_HINTS.forEach(([re,fn])=>{ if(re.test(n)) state.cards.filter(fn).forEach(c=>out.push(c.id)); });
+  return out;
+}
+// Faturas "candidatas" para ligar um pagamento: cartão + mês, com vencimento perto da data do pagamento.
+function impFaturasCandidatas(data, memo){
+  const hint = impCartoesHint(memo);
+  const lista = [];
+  state.cards.forEach(c=>{
+    const meses = new Set(state.lancamentos.filter(l=>l.origemTipo==='cartao' && l.origemId===c.id && l.fatura).map(l=>l.fatura));
+    meses.forEach(mes=>{
+      const it = state.lancamentos.filter(l=>l.origemTipo==='cartao' && l.origemId===c.id && l.fatura===mes);
+      const venc = (it.find(l=>l.vencimento)||{}).vencimento || cardVencDate(c.id, mes) || (mes+'-28');
+      const dif = Math.abs(impDias(data, venc));
+      if(dif <= 45) lista.push({cardId:c.id, mes, venc, dif, hint:hint.includes(c.id), total: invoiceTotalForCard(c.id, mes)});
+    });
+  });
+  lista.sort((a,b)=> (b.hint-a.hint) || (a.dif-b.dif));
+  return lista;
+}
+function impSugerir(tx, tipoDest, idx){
+  const memo = tx.memo || '';
+  const r = { desc: impLimparMemo(memo), cat:'', link:null };
+  const n = impNorm(memo);
+  if(tipoDest==='conta'){
+    if(impEhMeu(memo) && /pix|transfer/.test(n)){ r.desc = 'PIX Erivert (transf. interna)'; r.cat = 'sys_transferencia'; return r; }
+    if(/aplicacao|resgate|\brdb\b|\bcdb\b|investimento/.test(n) && !/rendimento/.test(n)){ r.cat = 'sys_transferencia'; return r; }
+    if(tx.valor < 0 && /\binss\b/.test(n) && catById('esa_inss')){ r.cat = 'esa_inss'; return r; }
+    if(tx.valor < 0 && /simples nacional|\bdas\b/.test(n) && catById('esa_imposto_simples')){ r.cat = 'esa_imposto_simples'; return r; }
+    if(tx.valor < 0 && (/fatura|banco digio|nu pagamentos|cartao de credito/.test(n))){
+      r.cat = CAT_PAGAMENTO_FATURA;
+      const cand = impFaturasCandidatas(tx.data, memo).find(c=>c.hint) || null;
+      if(cand){
+        r.link = {cardId:cand.cardId, mes:cand.mes};
+        r.desc = impDescPagto(cardById(cand.cardId), memo);
+      }
+      return r;
+    }
+  }
+  r.cat = impCategoriaPorHistorico(r.desc, idx) || impCategoriaPorHistorico(memo, idx);
+  return r;
+}
+const impDescPagto = (card, memo) => `Pagamento fatura cartão ${card.name}` + (/fatura/i.test(memo) ? '' : ` (${impLimparMemo(memo)})`);
+const IMP_PAGTO_CARTAO = /pagamento (efetuado|recebido|de fatura|fatura|on line|online)|pgto|pagto|saldo (anterior|da fatura anterior)|fatura anterior|obrigado pelo pagamento/;
+
+// ---------- Avaliação (duplicados, categoria, mês fechado) ----------
+function impDestino(f){ return f.destTipo==='conta' ? accById(f.destId) : cardById(f.destId); }
+function impMontarLinhas(f){
+  const idx = impIndiceCategorias();
+  f.linhas = f.txs.map((t,i)=>{
+    const valor = impR2(f.inverter ? -t.valor : t.valor);
+    const tx = {...t, valor};
+    const sug = impSugerir(tx, f.destTipo, idx);
+    return { i, data:t.data, valor, fitid:t.fitid||'', memo:t.memo, desc:sug.desc, cat:sug.cat, link:sug.link, descEditada:false, sel:false, status:'novo', par:null };
+  });
+  impAvaliar(f);
+}
+function impVenc(f){ return f.destTipo==='cartao' ? (f.venc || '') : ''; }
+function impAvaliar(f){
+  const dest = impDestino(f); if(!dest) return;
+  const existentes = state.lancamentos.filter(l=>l.origemTipo===f.destTipo && l.origemId===f.destId);
+  const usados = new Set();
+  const livre = l=>!usados.has(l.id);
+  // 1) FITID idêntico (importado antes)
+  f.linhas.forEach(r=>{
+    r.status = 'novo'; r.par = null;
+    if(r.fitid){ const l = existentes.find(l=>l.importId===r.fitid && livre(l)); if(l){ usados.add(l.id); r.status='dup'; r.par=l; } }
+  });
+  // 2) mesmo valor e mesma data
+  f.linhas.forEach(r=>{
+    if(r.status!=='novo') return;
+    const l = existentes.find(l=>livre(l) && impCents(l.valor)===impCents(r.valor) && Math.sign(l.valor)===Math.sign(r.valor) && l.data===r.data);
+    if(l){ usados.add(l.id); r.status='dup'; r.par=l; }
+  });
+  // 3) mesmo valor, data próxima (possível duplicata)
+  const tol = f.destTipo==='cartao' ? 5 : 3;
+  f.linhas.forEach(r=>{
+    if(r.status!=='novo') return;
+    const l = existentes.filter(l=>livre(l) && impCents(l.valor)===impCents(r.valor) && Math.sign(l.valor)===Math.sign(r.valor) && Math.abs(impDias(l.data,r.data))<=tol)
+                        .sort((a,b)=>Math.abs(impDias(a.data,r.data))-Math.abs(impDias(b.data,r.data)))[0];
+    if(l){ usados.add(l.id); r.status='poss'; r.par=l; }
+  });
+  f.linhas.forEach(r=>{
+    if(r.status==='novo'){
+      if(f.destTipo==='cartao' && IMP_PAGTO_CARTAO.test(impNorm(r.memo))) r.status='pag';
+    }
+    const mes = f.destTipo==='cartao' ? (impVenc(f)||'').slice(0,7) : r.data.slice(0,7);
+    if(r.status==='novo' && mes && mesFechado(mes)) r.status='fechado';
+    r.sel = r.status==='novo' && !!r.cat;
+  });
+}
+function impResumo(f){
+  const c = {novo:0, dup:0, poss:0, pag:0, fechado:0, semcat:0};
+  f.linhas.forEach(r=>{ c[r.status]++; if(r.status==='novo' && !r.cat) c.semcat++; });
+  const sel = f.linhas.filter(r=>r.sel);
+  const soma = impR2(sel.reduce((s,r)=>s+r.valor,0));
+  const dest = impDestino(f);
+  let aviso = '';
+  if(f.destTipo==='conta' && dest){
+    const apos = impR2(dest.saldoAtual + soma);
+    if(f.saldoBanco!=null){
+      const dif = impR2(apos - f.saldoBanco);
+      aviso = Math.abs(dif)<0.005
+        ? `<span class="pill good">Saldo confere: app ${fmt(apos)} = banco ${fmt(f.saldoBanco)}</span>`
+        : `<span class="pill warn">Saldo do banco ${fmt(f.saldoBanco)} · app depois de lançar ${fmt(apos)} · diferença ${fmt(dif)}</span>`;
+    } else aviso = `<span class="tag">Saldo do app depois de lançar: ${fmt(apos)}</span>`;
+  } else if(f.destTipo==='cartao' && dest){
+    const mes = (impVenc(f)||'').slice(0,7);
+    const atual = mes ? invoiceItemsForCard(f.destId, mes).length : 0;
+    const totArq = impR2(-sel.reduce((s,r)=>s+r.valor,0));
+    aviso = `<span class="tag">Selecionado para a fatura ${mes?monthLabel(mes):'(informe o vencimento)'}: ${fmt(totArq)}</span>`;
+    if(f.totalFatura!=null) aviso += ` <span class="${Math.abs(totArq-f.totalFatura)<0.005?'pill good':'pill warn'}">Total no PDF ${fmt(f.totalFatura)}</span>`;
+    else if(f.saldoBanco!=null) aviso += ` <span class="${Math.abs(totArq+f.saldoBanco)<0.005?'pill good':'pill warn'}">Total no arquivo ${fmt(-f.saldoBanco)}</span>`;
+    if(atual) aviso += ` <span class="pill warn">Essa fatura já tem ${atual} item(ns) no app</span>`;
+  }
+  return {c, sel, soma, aviso};
+}
+
+// ---------- Tela ----------
+function impOptsCats(){
+  const cats = state.categories.filter(c=>c.id!==CAT_PAGAMENTO_FATURA && c.id!=='sys_ajuste_saldo').slice().sort((a,b)=> (a.grupo||'').localeCompare(b.grupo||'','pt-BR') || a.nome.localeCompare(b.nome,'pt-BR'));
+  const pag = catById(CAT_PAGAMENTO_FATURA);
+  return (pag?`<option value="${pag.id}">${escAttr(pag.grupo)} — ${escAttr(pag.nome)}</option>`:'') + cats.map(c=>`<option value="${c.id}">${escAttr(c.grupo)} — ${escAttr(c.nome)}</option>`).join('');
+}
+const IMP_STATUS = {
+  novo:   ['pill good','Novo'], dup:['tag','Já existe'], poss:['pill warn','Possível duplicata'],
+  pag:    ['tag','Pagamento (vem pela conta)'], fechado:['pill late','Mês fechado'],
+};
+function impLinhaHTML(f, fi, r, opts){
+  const st = (r.status==='novo' && !r.cat) ? ['pill warn','Escolha a categoria'] : IMP_STATUS[r.status];
+  const pagLink = (f.destTipo==='conta' && r.cat===CAT_PAGAMENTO_FATURA) ? (()=>{
+    const cands = impFaturasCandidatas(r.data, r.memo);
+    const v = r.link ? r.link.cardId+'|'+r.link.mes : '';
+    return `<select class="imp-link" data-f="${fi}" data-r="${r.i}" style="margin-top:4px;"><option value="">🔗 sem vínculo com fatura</option>${cands.map(c=>`<option value="${c.cardId}|${c.mes}" ${v===c.cardId+'|'+c.mes?'selected':''}>🔗 ${escAttr(cardById(c.cardId).name)} · ${monthLabel(c.mes)} (${fmt(c.total)})</option>`).join('')}</select>`;
+  })() : '';
+  const bloqueado = r.status==='fechado';
+  const par = r.par ? `<div style="font-size:11px; color:var(--text-secondary);">${r.status==='poss'?'parecido com':'igual a'}: ${escAttr(r.par.descricao)} · ${fmtDate(r.par.data)}</div>` : '';
+  return `<tr style="${r.sel?'':'opacity:.78;'}">
+    <td><input type="checkbox" class="imp-sel" data-f="${fi}" data-r="${r.i}" ${r.sel?'checked':''} ${bloqueado?'disabled':''}></td>
+    <td>${fmtDate(r.data)}</td>
+    <td style="min-width:220px;"><input type="text" class="imp-desc" data-f="${fi}" data-r="${r.i}" value="${escAttr(r.desc)}" style="width:100%;">${par}</td>
+    <td style="min-width:200px;"><select class="imp-cat" data-f="${fi}" data-r="${r.i}"><option value="">— escolher —</option>${opts.replace(`value="${r.cat}"`,`value="${r.cat}" selected`)}</select>${pagLink}</td>
+    <td style="text-align:right; white-space:nowrap; font-variant-numeric:tabular-nums; color:${r.valor<0?'var(--critical)':'var(--success-text)'}; font-weight:600;">${fmt(r.valor)}</td>
+    <td><span class="${st[0]}">${st[1]}</span></td>
+  </tr>`;
+}
+function impArquivoHTML(f, fi){
+  const dest = impDestino(f);
+  const lista = f.destTipo==='conta' ? state.accounts : state.cards;
+  const rs = impResumo(f);
+  const opts = impOptsCats();
+  const conhecido = f.acctKey && state.importMap[f.acctKey];
+  return `<div class="card" id="impFile-${fi}">
+    <div style="display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; align-items:flex-start;">
+      <div><h2 style="margin:0;">${escAttr(f.nome)} <small>${f.formato}${f.formato==='PDF'?' · leitura por texto (beta) — confira a soma':''}</small></h2>
+        <div class="sub" style="margin:4px 0 0;">${f.periodo.de||f.periodo.ate ? `Período ${f.periodo.de?fmtDate(f.periodo.de):'?'} a ${f.periodo.ate?fmtDate(f.periodo.ate):'?'} · `:''}${f.txs.length} movimento(s) no arquivo${f.acctKey?` · id ${escAttr(f.acctKey.length>14?f.acctKey.slice(0,8)+'…':f.acctKey)}`:''}</div></div>
+      <button class="btn secondary imp-fechar" data-f="${fi}" type="button">Descartar arquivo</button>
+    </div>
+    <div style="margin-top:12px; display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end;">
+      <div><label style="display:block;">Tipo</label><select class="imp-tipo" data-f="${fi}"><option value="conta" ${f.destTipo==='conta'?'selected':''}>Conta (extrato)</option><option value="cartao" ${f.destTipo==='cartao'?'selected':''}>Cartão (fatura)</option></select></div>
+      <div><label style="display:block;">${f.destTipo==='conta'?'Conta':'Cartão'} de destino ${conhecido?'<small>(reconhecido)</small>':'<small>(escolha — vou lembrar)</small>'}</label>
+        <select class="imp-dest" data-f="${fi}">${lista.map(x=>`<option value="${x.id}" ${x.id===f.destId?'selected':''}>${escAttr(x.name)}</option>`).join('')}</select></div>
+      ${f.destTipo==='cartao' ? `<div><label style="display:block;">Vencimento da fatura</label><input type="date" class="imp-venc" data-f="${fi}" value="${f.venc||''}"></div>
+      <div><label style="display:block;">Sinais</label><label style="display:flex; gap:6px; align-items:center; font-weight:400;"><input type="checkbox" class="imp-inv" data-f="${fi}" ${f.inverter?'checked':''}> inverter (compras negativas)</label></div>` : ''}
+    </div>
+    <div style="margin:10px 0; display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+      <span class="pill good">${rs.c.novo} novo(s)</span><span class="tag">${rs.c.dup} já existe(m)</span>
+      ${rs.c.poss?`<span class="pill warn">${rs.c.poss} possível(is) duplicata(s)</span>`:''}${rs.c.pag?`<span class="tag">${rs.c.pag} pagamento(s) ignorado(s)</span>`:''}
+      ${rs.c.fechado?`<span class="pill late">${rs.c.fechado} em mês fechado</span>`:''}${rs.c.semcat?`<span class="pill warn">${rs.c.semcat} sem categoria</span>`:''}
+      ${rs.aviso}
+    </div>
+    <div class="tblwrap"><table><thead><tr><th></th><th>Data</th><th>Descrição</th><th>Categoria</th><th style="text-align:right;">Valor</th><th>Situação</th></tr></thead>
+      <tbody>${f.linhas.map(r=>impLinhaHTML(f,fi,r,opts)).join('') || '<tr><td colspan="6" style="text-align:center; padding:16px; color:var(--text-secondary);">Nenhum movimento encontrado neste arquivo.</td></tr>'}</tbody></table></div>
+    <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+      <button class="btn imp-lancar" data-f="${fi}" type="button" ${rs.sel.length?'':'disabled'}>Lançar ${rs.sel.length} selecionado(s) · ${fmt(rs.soma)}</button>
+      <span class="sub" style="margin:0;">Marque “possível duplicata” só se tiver certeza de que é um lançamento diferente.</span>
+    </div>
+  </div>`;
+}
+function impLotesHTML(){
+  const lotes = (state.importLotes||[]).slice(-6).reverse();
+  if(!lotes.length) return '';
+  return `<div class="card"><h2>Importações recentes</h2><div class="sub" style="margin:-6px 0 10px;">“Desfazer” remove os lançamentos daquela importação e devolve o saldo da conta.</div>
+    ${lotes.map(l=>`<div style="display:flex; justify-content:space-between; gap:10px; padding:8px 0; border-top:1px solid var(--border); align-items:center; flex-wrap:wrap;">
+      <div><b>${escAttr(l.arquivo)}</b><div class="sub" style="margin:0;">${new Date(l.quando).toLocaleString('pt-BR')} · ${l.qtd} lançamento(s) em ${escAttr(l.destNome)}</div></div>
+      <button class="btn secondary imp-desfazer" data-lote="${l.id}" type="button">Desfazer</button></div>`).join('')}</div>`;
+}
+function viewImportar(){
+  const msg = (()=>{ const m = flashMsg; flashMsg = null; return m ? `<div class="flashmsg">${m}</div>` : ''; })();
+  return `${msg}
+  <div class="card">
+    <h2>Importar extrato ou fatura <small>OFX e PDF</small></h2>
+    <div class="sub" style="margin:-6px 0 12px;">Escolha os arquivos do banco (extrato de conta ou fatura de cartão). Eu mostro tudo para você revisar — o que já existe fica de fora — e só lanço quando você confirmar. Os arquivos não saem do seu aparelho.</div>
+    <div class="ocrbox" id="impDrop">
+      <input type="file" id="impFile" multiple accept=".ofx,.qfx,.pdf,application/pdf" style="display:none">
+      <button class="btn" id="btnImpEscolher" type="button">${icon('upload',18)} Escolher arquivos (OFX ou PDF)</button>
+      <div class="ocrstatus" id="impStatus">${impBusy || 'Pode escolher vários de uma vez, ou arrastar para cá. OFX é o mais confiável; PDF funciona melhor em extratos do Inter e fica em teste nos demais.'}</div>
+      ${impErros.length ? `<div class="ocrstatus" style="color:var(--critical);">${impErros.map(e=>escAttr(e)).join('<br>')}</div>` : ''}
+    </div>
+  </div>
+  ${impArquivos.map(impArquivoHTML).join('')}
+  ${impLotesHTML()}`;
+}
+function impRefazerArquivo(fi){
+  const el = document.getElementById('impFile-'+fi);
+  if(!el) return render();
+  el.outerHTML = impArquivoHTML(impArquivos[fi], fi);
+  impWireCard(fi);
+}
+async function impAdicionar(files){
+  impErros = [];
+  for(const file of files){
+    impBusy = 'Lendo ' + file.name + '…'; render();
+    try{
+      const ehPdf = /\.pdf$/i.test(file.name) || file.type==='application/pdf';
+      const dados = ehPdf ? impParsePDFLinhas(await impPdfLinhas(file), file.name) : impParseOFX(await impLerTexto(file), file.name);
+      const f = { nome:file.name, ...dados };
+      const mem = f.acctKey && state.importMap[f.acctKey];
+      if(mem){ f.destTipo = mem.tipo; f.destId = mem.id; }
+      else { f.destTipo = f.tipo; f.destId = (f.tipo==='conta' ? state.accounts : state.cards)[0].id; }
+      if(f.destTipo==='cartao' && !f.venc){
+        const ref = f.saldoData || (f.periodo && f.periodo.ate) || dataBase();
+        const d = cardById(f.destId) && cardById(f.destId).diaVencimento;
+        if(d){ let [y,m] = ref.slice(0,7).split('-').map(Number); if(d < +ref.slice(8,10)){ m++; if(m>12){m=1;y++;} } f.venc = `${y}-${String(m).padStart(2,'0')}-${String(Math.min(d,daysInMonth(`${y}-${String(m).padStart(2,'0')}`))).padStart(2,'0')}`; }
+      }
+      impMontarLinhas(f);
+      impArquivos.push(f);
+      if(!f.txs.length) impErros.push(file.name + ': nenhum movimento encontrado.');
+    }catch(e){
+      impErros.push(file.name + ': não consegui ler (' + (e && e.message ? e.message : e) + ').');
+    }
+  }
+  impBusy = ''; render();
+}
+function impLancar(fi){
+  const f = impArquivos[fi]; if(!f) return;
+  const dest = impDestino(f); if(!dest) return;
+  const rs = impResumo(f);
+  if(!rs.sel.length) return;
+  if(rs.sel.some(r=>!r.cat)){ alert('Escolha a categoria de todos os itens marcados (ou desmarque os que não quer lançar).'); return; }
+  if(f.destTipo==='cartao' && !f.venc){ alert('Informe o vencimento da fatura antes de lançar.'); return; }
+  if(rs.sel.some(r=>r.status==='poss') && !confirm('Há itens marcados que parecem duplicados de lançamentos que já existem. Lançar mesmo assim?')) return;
+  const loteId = 'imp_' + Date.now();
+  const fatura = f.destTipo==='cartao' ? f.venc.slice(0,7) : null;
+  const ids = [];
+  rs.sel.forEach(r=>{
+    const item = {
+      id: uid(), data: r.data, origemTipo: f.destTipo, origemId: f.destId, categoriaId: r.cat,
+      descricao: (r.desc || r.memo).trim(), valor: r.valor,
+      fatura, vencimento: f.destTipo==='cartao' ? f.venc : null, importLote: loteId,
+    };
+    if(r.fitid) item.importId = r.fitid;
+    if(f.destTipo==='conta' && r.cat===CAT_PAGAMENTO_FATURA && r.link){ item.pagaFaturaCardId = r.link.cardId; item.pagaFaturaMes = r.link.mes; }
+    state.lancamentos.push(item); ids.push(item.id);
+  });
+  let delta = 0;
+  if(f.destTipo==='conta'){
+    delta = rs.soma;
+    dest.saldoAtual = impR2(dest.saldoAtual + delta);
+    const ultima = [f.saldoData, ...rs.sel.map(r=>r.data)].filter(Boolean).sort().pop();
+    if(ultima && (!dest.dataExtrato || ultima > dest.dataExtrato)) dest.dataExtrato = ultima;
+    if(ultima && ultima > dataBase()) state.dataBase = ultima;
+  }
+  if(f.acctKey) state.importMap[f.acctKey] = {tipo:f.destTipo, id:f.destId};
+  state.importLotes.push({id:loteId, quando:Date.now(), arquivo:f.nome, destTipo:f.destTipo, destId:f.destId, destNome:dest.name, qtd:ids.length, delta, ids});
+  if(state.importLotes.length > 30) state.importLotes = state.importLotes.slice(-30);
+  impArquivos.splice(fi,1);
+  flashMsg = `✅ ${ids.length} lançamento(s) importado(s) em ${escAttr(dest.name)} (${fmt(rs.soma)}). ${f.destTipo==='conta' ? `Saldo da conta: ${fmt(dest.saldoAtual)}.` : `Confira em “Cartões”.`}`;
+  render();
+}
+function impDesfazer(loteId){
+  const l = (state.importLotes||[]).find(x=>x.id===loteId); if(!l) return;
+  const itens = state.lancamentos.filter(x=>x.importLote===loteId);
+  const fechado = itens.map(lancMonth).find(m=>mesFechado(m));
+  if(fechado){ alert(`${monthLabel(fechado)} está fechado — reabra em "Cadastro" antes de desfazer esta importação.`); return; }
+  if(!confirm(`Remover ${itens.length} lançamento(s) de “${l.arquivo}” e devolver o saldo de ${l.destNome}?`)) return;
+  state.lancamentos = state.lancamentos.filter(x=>x.importLote!==loteId);
+  const dest = l.destTipo==='conta' ? accById(l.destId) : null;
+  if(dest) dest.saldoAtual = impR2(dest.saldoAtual - l.delta);
+  state.importLotes = state.importLotes.filter(x=>x.id!==loteId);
+  flashMsg = `↩️ Importação de “${escAttr(l.arquivo)}” desfeita (${itens.length} lançamento(s) removido(s)).`;
+  render();
+}
+function impWireCard(fi){
+  const card = document.getElementById('impFile-'+fi); if(!card) return;
+  const f = impArquivos[fi];
+  const R = el => f.linhas[+el.dataset.r];
+  const refaz = ()=>impRefazerArquivo(fi);
+  card.querySelector('.imp-fechar').addEventListener('click', ()=>{ impArquivos.splice(fi,1); render(); });
+  card.querySelector('.imp-lancar').addEventListener('click', ()=>impLancar(fi));
+  card.querySelector('.imp-tipo').addEventListener('change', e=>{
+    f.destTipo = e.target.value; f.destId = (f.destTipo==='conta'?state.accounts:state.cards)[0].id;
+    f.inverter = f.destTipo==='cartao' && f.txs.reduce((a,t)=>a+t.valor,0) > 0.004;
+    impMontarLinhas(f); refaz();
+  });
+  card.querySelector('.imp-dest').addEventListener('change', e=>{ f.destId = e.target.value; impMontarLinhas(f); refaz(); });
+  const v = card.querySelector('.imp-venc'); if(v) v.addEventListener('change', e=>{ f.venc = e.target.value; impAvaliar(f); refaz(); });
+  const iv = card.querySelector('.imp-inv'); if(iv) iv.addEventListener('change', e=>{ f.inverter = e.target.checked; impMontarLinhas(f); refaz(); });
+  card.querySelectorAll('.imp-sel').forEach(c=>c.addEventListener('change', ()=>{ R(c).sel = c.checked; refaz(); }));
+  card.querySelectorAll('.imp-desc').forEach(c=>c.addEventListener('input', ()=>{ const r = R(c); r.desc = c.value; r.descEditada = true; }));
+  card.querySelectorAll('.imp-cat').forEach(c=>c.addEventListener('change', ()=>{
+    const r = R(c); r.cat = c.value;
+    if(r.cat===CAT_PAGAMENTO_FATURA && f.destTipo==='conta' && !r.link){
+      const cand = impFaturasCandidatas(r.data, r.memo)[0]; if(cand) r.link = {cardId:cand.cardId, mes:cand.mes};
+    }
+    if(r.cat!==CAT_PAGAMENTO_FATURA) r.link = null;
+    if(r.status==='novo') r.sel = !!r.cat;
+    refaz();
+  }));
+  card.querySelectorAll('.imp-link').forEach(c=>c.addEventListener('change', ()=>{
+    const r = R(c);
+    if(!c.value) r.link = null;
+    else { const [cardId,mes] = c.value.split('|'); r.link = {cardId, mes}; if(!r.descEditada) r.desc = impDescPagto(cardById(cardId), r.memo); }
+    refaz();
+  }));
+}
+function wireImportar(){
+  const inp = document.getElementById('impFile');
+  document.getElementById('btnImpEscolher').addEventListener('click', ()=>inp.click());
+  inp.addEventListener('change', ()=>{ const fs = [...inp.files]; inp.value=''; if(fs.length) impAdicionar(fs); });
+  const drop = document.getElementById('impDrop');
+  ['dragenter','dragover'].forEach(ev=>drop.addEventListener(ev, e=>{ e.preventDefault(); drop.style.outline='2px dashed var(--brand,#6046c6)'; }));
+  ['dragleave','drop'].forEach(ev=>drop.addEventListener(ev, e=>{ e.preventDefault(); drop.style.outline=''; }));
+  drop.addEventListener('drop', e=>{ const fs = [...(e.dataTransfer.files||[])]; if(fs.length) impAdicionar(fs); });
+  document.querySelectorAll('.imp-desfazer').forEach(b=>b.addEventListener('click', ()=>impDesfazer(b.dataset.lote)));
+  impArquivos.forEach((_,fi)=>impWireCard(fi));
+}
+
 function viewCadastro(){
     const mesesFechadosOrdenados = [...state.mesesFechados].sort().reverse();
   return `
